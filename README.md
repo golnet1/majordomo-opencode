@@ -14,6 +14,7 @@
 
 ## Требования
 
+- 64-разрядная система на базе Linux (arm64 или x86_64)
 - Majordomo (любая версия с поддержкой модулей)
 - PHP 8.2+
 - Node.js 18+ (для opencode binary)
@@ -43,6 +44,7 @@ Integration module for [opencode](https://opencode.ai) with the [Majordomo](http
 
 ## Requirements
 
+- 64-bit Linux system (arm64 or x86_64)
 - Majordomo (any version with module support)
 - PHP 8.2+
 - Node.js 18+ (for opencode binary)
