@@ -21,14 +21,30 @@ if ($op == 'send_message') {
     }
     $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
     $m->saveMessageToHistory($msg, 'user', $user_id);
+    $placeholder_id = $m->saveMessageToHistory('…', 'assistant', $user_id);
     session_write_close();
-    $response = $m->processWithOpencode($msg);
-    if ($response) {
-        $m->processDeviceCommands($response);
-        $msg_id = $m->saveMessageToHistory($response, 'assistant', $user_id);
-        echo json_encode(array('success' => true, 'response' => $response, 'message_id' => $msg_id));
+    $bg = DIR_MODULES . 'opencode/background.php';
+    $safe_msg = escapeshellarg($msg);
+    exec("php $bg $placeholder_id $user_id $safe_msg > /dev/null 2>&1 &");
+    ob_clean();
+    echo json_encode(array('success' => true, 'processing' => true, 'message_id' => $placeholder_id));
+    flush();
+    exit;
+} elseif ($op == 'check_message') {
+    $msg_id = (int)gr('message_id');
+    if ($msg_id) {
+        $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$msg_id'");
+        if ($rec['ID']) {
+            if ($rec['MESSAGE'] === '…') {
+                echo json_encode(array('success' => true, 'processing' => true));
+            } else {
+                echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
+            }
+        } else {
+            echo json_encode(array('success' => false, 'error' => 'Сообщение не найдено'));
+        }
     } else {
-        echo json_encode(array('success' => false, 'error' => 'Нет ответа от AI'));
+        echo json_encode(array('success' => false, 'error' => 'Не указан ID сообщения'));
     }
 } elseif ($op == 'clear_history') {
     $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);

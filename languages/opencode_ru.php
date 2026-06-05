@@ -86,7 +86,7 @@ $dictionary = array(
     'OPENCODE_TYPING' => 'Печатает...',
     'OPENCODE_HELP' => 'Помощь',
     'OPENCODE_BACK_SETTINGS' => '← К настройкам',
-
+    'OPENCODE_NO_RESPONSE' => 'Извините, не удалось получить ответ',
 );
 
 foreach ($dictionary as $k=>$v)

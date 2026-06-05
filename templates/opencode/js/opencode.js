@@ -2,6 +2,40 @@ function ocGetBaseUrl() {
     return '/modules/opencode/opencode_ajax.php';
 }
 
+function ocPollMessage(msgId) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', ocGetBaseUrl() + '?op=check_message', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onload = function() {
+        if (xhr.status == 200) {
+            try {
+                var res = JSON.parse(xhr.responseText);
+                if (res.success && !res.processing) {
+                    ocHideTyping();
+                    ocAddMessage('assistant', res.response);
+                } else if (res.success && res.processing) {
+                    setTimeout(function() { ocPollMessage(msgId); }, 2000);
+                } else {
+                    ocHideTyping();
+                    var err = res.error || 'Unknown error';
+                    ocAddMessage('assistant', 'Error: ' + err);
+                }
+            } catch(e) {
+                ocHideTyping();
+                ocAddMessage('assistant', 'Invalid response from server');
+            }
+        } else {
+            ocHideTyping();
+            ocAddMessage('assistant', 'Connection error. Please try again.');
+        }
+    };
+    xhr.onerror = function() {
+        ocHideTyping();
+        ocAddMessage('assistant', 'Connection error. Please try again.');
+    };
+    xhr.send('message_id=' + msgId);
+}
+
 function ocSendMessage() {
     var input = document.getElementById('ocInput');
     var msg = input.value.trim();
@@ -23,22 +57,27 @@ function ocSendMessage() {
     xhr.onload = function() {
         btn.disabled = false;
         btn.textContent = sendText;
-        ocHideTyping();
         if (xhr.status == 200) {
             try {
                 var res = JSON.parse(xhr.responseText);
-                if (res.success) {
+                if (res.success && res.processing) {
+                    ocPollMessage(res.message_id);
+                } else if (res.success && res.response) {
+                    ocHideTyping();
                     ocAddMessage('assistant', res.response);
                 } else {
+                    ocHideTyping();
                     var errPrefix = res.error ? 'Error: ' : '';
                     var unknown = ocLang && ocLang.unknownError || 'Unknown error';
                     ocAddMessage('assistant', errPrefix + (res.error || unknown));
                 }
             } catch(e) {
+                ocHideTyping();
                 var serverErr = ocLang && ocLang.serverError || 'Invalid response from server';
                 ocAddMessage('assistant', serverErr);
             }
         } else {
+            ocHideTyping();
             var connErr = ocLang && ocLang.connectError || 'Connection error. Please try again.';
             ocAddMessage('assistant', connErr);
         }
