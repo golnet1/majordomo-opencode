@@ -858,17 +858,17 @@ class opencode extends module {
 
     function installOpencodeBinary() {
         DebMes("Opencode binary not found, attempting to install...", 'opencode');
+        $sudo = $this->isRoot() ? '' : 'sudo ';
         $install_output = array();
         $return_var = 0;
-        exec('npm i -g opencode-ai 2>&1', $install_output, $return_var);
+        exec("{$sudo}npm i -g opencode-ai 2>&1", $install_output, $return_var);
         if ($return_var !== 0) {
             DebMes("npm install failed, trying curl install...", 'opencode');
-            exec('curl -fsSL https://opencode.ai/install | bash 2>&1', $install_output, $return_var);
+            exec("{$sudo}curl -fsSL https://opencode.ai/install | {$sudo}bash 2>&1", $install_output, $return_var);
         }
         if ($return_var !== 0) {
             DebMes("Opencode installation failed", 'opencode');
         } else {
-            $sudo = $this->isRoot() ? '' : 'sudo ';
             exec("{$sudo}chmod 755 /usr/local/bin/opencode 2>/dev/null");
         }
     }
