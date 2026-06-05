@@ -1,0 +1,113 @@
+<?php
+define('ALLOW_RUNNING_WITH_ERRORS', 1);
+chdir('/var/www/html');
+require_once "./config.php";
+require_once "./lib/loader.php";
+require_once "./load_settings.php";
+
+header('Content-Type: application/json; charset=utf-8');
+
+$session = new session("prj");
+require_once "./modules/opencode/opencode.class.php";
+$m = new opencode();
+$m->action = 'admin';
+
+$op = gr('op');
+if ($op == 'send_message') {
+    $msg = gr('message');
+    if (!$msg) {
+        echo json_encode(array('success' => false, 'error' => 'Пустое сообщение'));
+        exit;
+    }
+    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
+    $m->saveMessageToHistory($msg, 'user', $user_id);
+    session_write_close();
+    $response = $m->processWithOpencode($msg);
+    if ($response) {
+        $m->processDeviceCommands($response);
+        $msg_id = $m->saveMessageToHistory($response, 'assistant', $user_id);
+        echo json_encode(array('success' => true, 'response' => $response, 'message_id' => $msg_id));
+    } else {
+        echo json_encode(array('success' => false, 'error' => 'Нет ответа от AI'));
+    }
+} elseif ($op == 'clear_history') {
+    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
+    SQLExec("DELETE FROM opencode_messages WHERE USER_ID='" . $user_id . "'");
+    echo json_encode(array('success' => true));
+} elseif ($op == 'load_history') {
+    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
+    $messages = SQLSelect("SELECT * FROM opencode_messages WHERE USER_ID='" . $user_id . "' ORDER BY ID ASC");
+    echo json_encode(array('success' => true, 'messages' => $messages));
+} elseif ($op == 'load_devices') {
+    echo json_encode(array('success' => true, 'devices' => array()));
+} elseif ($op == 'refresh_models') {
+    $models = $m->getAvailableModels(true);
+    echo json_encode(array('success' => true, 'models' => $models));
+} elseif ($op == 'check_status') {
+    $health = null;
+    $deps = $m->checkDependencies($health);
+    $model_name = $m->config['OC_PROVIDER_ENDPOINT'] ? ($m->config['OC_PROVIDER_MODEL'] ?: $m->config['OC_MODEL']) : ($m->config['OC_MODEL'] ?: 'opencode/big-pickle');
+    echo json_encode(array(
+        'success' => true,
+        'api_ok' => ($deps['api'] === 'ok'),
+        'binary_ok' => ($deps['opencode_binary'] === 'ok'),
+        'sudo_ok' => $m->canSudo(),
+        'model' => $model_name
+    ));
+} elseif ($op == 'load_provider_models') {
+    $endpoint = gr('endpoint');
+    $api_key = gr('api_key');
+    if (!$endpoint) {
+        echo json_encode(array('success' => false, 'error' => 'Не указан endpoint'));
+        exit;
+    }
+    $endpoint = rtrim($endpoint, '/');
+    if (!preg_match('#^https?://#', $endpoint)) {
+        $endpoint = 'https://' . $endpoint;
+    }
+    $models = array();
+    $found = false;
+    $paths = array('/api/tags', '/v1/models', '/models');
+    foreach ($paths as $path) {
+        $url = $endpoint . $path;
+        $headers = array('Content-Type: application/json');
+        if ($api_key) {
+            $headers[] = 'Authorization: Bearer ' . $api_key;
+        }
+        $ch = curl_init();
+        curl_setopt_array($ch, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ));
+        $body = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($http_code !== 200) continue;
+        $data = json_decode($body, true);
+        if (!$data) continue;
+        if (isset($data['models']) && is_array($data['models'])) {
+            foreach ($data['models'] as $m) {
+                if (isset($m['name'])) $models[] = $m['name'];
+            }
+        }
+        if (isset($data['data']) && is_array($data['data'])) {
+            foreach ($data['data'] as $m) {
+                if (isset($m['id'])) $models[] = $m['id'];
+            }
+        }
+        if (!empty($models)) { $found = true; break; }
+    }
+    if (!$found) {
+        $models = array('gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo');
+    }
+    sort($models);
+    echo json_encode(array('success' => true, 'models' => $models));
+} else {
+    echo json_encode(array('success' => false, 'error' => 'Неизвестная операция'));
+}
+
+$session->save();
+

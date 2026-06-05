@@ -1,0 +1,451 @@
+<div class="container-fluid">
+    <h3>
+        <img src="img/modules/opencode.png" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;">
+        <#LANG_OPENCODE_SETTINGS#>
+        <span style="margin-left:12px;font-size:13px;font-weight:normal;">
+            <span id="oc_deps_binary" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_BINARY_COLOR#];margin-right:3px;vertical-align:middle;"></span>
+            <span id="oc_deps_binary_label" style="vertical-align:middle;">OpenCode</span>
+            <span id="oc_deps_api" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_API_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
+            <span id="oc_deps_api_label" style="vertical-align:middle;">API сервер</span>
+            <span id="oc_deps_sudo" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_SUDO_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
+            <span id="oc_deps_sudo_label" style="vertical-align:middle;">Sudo ([#DEPS_SUDO_LABEL#])</span>
+            <span id="oc_deps_model" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_MODEL_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
+            <span id="oc_deps_model_label" style="vertical-align:middle;">[#DEPS_MODEL_LABEL#]</span>
+        </span>
+    </h3>
+    <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;">
+        [#if TAB_HELP!="1"#]
+        <a href="?action=opencode&md=opencode&tab=help" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_HELP#>"><span class="glyphicon glyphicon-question-sign"></span></a>
+        [#endif#]
+        <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#opencode_about">О модуле&nbsp;&nbsp;<span class="glyphicon glyphicon-info-sign icon-white"></span></button>
+    </div>
+    <hr>
+
+    <ul class="nav nav-tabs">
+        <li [#if TAB_SETTINGS="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=settings">Провайдеры, модели и MCP</a></li>
+        <li [#if TAB_SERVER="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=server">Настройки сервера</a></li>
+        <li [#if TAB_CHAT="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=chat">Чат</a></li>
+        <li [#if TAB_WEB="1"#]class="active"[#endif#] [#TAB_WEB_NAV_VISIBLE#]><a href="?action=opencode&md=opencode&tab=web"><#LANG_OPENCODE_WEB#></a></li>
+        <li [#if TAB_HELP="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=help">Помощь</a></li>
+    </ul>
+    <br>
+
+    <div [#OK_VISIBLE#] class="alert alert-success"><#LANG_OPENCODE_SAVED#></div>
+    <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
+    <div [#SESSION_CLEARED_VISIBLE#] class="alert alert-info"><#LANG_OPENCODE_SESSION_CLEARED#></div>
+
+    [#if TAB_SETTINGS="1" || TAB_SERVER="1"#]
+
+    <form action="?" method="post" class="form-horizontal">
+        <input type="hidden" name="view_mode" value="update_settings">
+        <input type="hidden" name="mode" value="update">
+        <input type="hidden" name="tab" value="[#TAB#]">
+
+    [#endif#]
+
+    [#if TAB_SETTINGS="1"#]
+
+        <div class="panel-group" id="oc_settings_accordion">
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_settings_accordion" data-target="#oc_settings_model">
+                    <span class="glyphicon glyphicon-cog" style="margin-right:8px;"></span>
+                    <#LANG_OPENCODE_MODEL_AGENT#>
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_settings_model" class="panel-collapse collapse in">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_MODEL#></label>
+                            <div class="col-md-6">
+                                <select name="oc_model" class="form-control">
+                                    <option value=""><#LANG_OPENCODE_SELECT_MODEL#></option>
+                                    [#begin AVAILABLE_MODELS#]
+                                    <option value="[#VALUE#]" [#SELECTED_FLAG#]>[#VALUE#]</option>
+                                    [#end AVAILABLE_MODELS#]
+                                </select>
+                                <span class="help-block"><#LANG_OPENCODE_CUSTOM_MODEL#></span>
+                                <input type="text" name="oc_model_custom" class="form-control" placeholder="<#LANG_OPENCODE_CUSTOM_MODEL_PLACEHOLDER#>" value="[#OC_MODEL#]">
+                                <button type="button" class="btn btn-xs btn-default" onclick="ocRefreshModels()"><#LANG_OPENCODE_REFRESH_MODELS#></button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_AGENT#></label>
+                            <div class="col-md-6">
+                                <select name="oc_agent" class="form-control">
+                                    <option value="build" [#OC_AGENT_BUILD_SEL#]><#LANG_OPENCODE_AGENT_BUILD#></option>
+                                    <option value="general" [#OC_AGENT_GENERAL_SEL#]><#LANG_OPENCODE_AGENT_GENERAL#></option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_PURE_MODE#></label>
+                            <div class="col-md-6">
+                                <input type="checkbox" name="oc_pure_mode" value="1" [#OC_PURE_MODE_CHECKED#]>
+                                <span class="help-block"><#LANG_OPENCODE_PURE_MODE_HELP#></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_settings_accordion" data-target="#oc_settings_provider">
+                    <span class="glyphicon glyphicon-cloud" style="margin-right:8px;"></span>
+                    <#LANG_OPENCODE_PROVIDER#>
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_settings_provider" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_API_ENDPOINT#></label>
+                            <div class="col-md-6">
+                                <input type="text" name="oc_provider_endpoint" class="form-control" placeholder="https://api.openai.com" value="[#OC_PROVIDER_ENDPOINT#]">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_API_KEY#></label>
+                            <div class="col-md-6">
+                                <input type="password" name="oc_provider_api_key" class="form-control" placeholder="sk-..." value="[#OC_PROVIDER_API_KEY#]">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_PROVIDER_MODEL#></label>
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <select class="form-control" id="oc_provider_model_select" onchange="if(this.value)document.getElementById('oc_provider_model').value=this.value">
+                                        <option value="">-- Загрузите модели с провайдера --</option>
+                                    </select>
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-default" onclick="ocLoadProviderModels()" id="oc_load_models_btn">Загрузить</button>
+                                    </span>
+                                </div>
+                                <input type="text" name="oc_provider_model" id="oc_provider_model" class="form-control" style="margin-top:5px;" placeholder="gpt-4o" value="[#OC_PROVIDER_MODEL#]">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_settings_accordion" data-target="#oc_settings_mcp">
+                    <span class="glyphicon glyphicon-transfer" style="margin-right:8px;"></span>
+                    <#LANG_OPENCODE_MCP_SERVERS#>
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_settings_mcp" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_MCP_JSON#></label>
+                            <div class="col-md-9">
+                                <textarea name="oc_mcp_servers" class="form-control" rows="6" style="font-family: monospace;">[#OC_MCP_SERVERS#]</textarea>
+                                <span class="help-block"><#LANG_OPENCODE_MCP_HELP#></span>
+                            </div>
+                        </div>
+                        <div class="form-group" [#OC_MAJORDOMO_MCP_VISIBLE#]>
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_MCP_MAJORDOMO#></label>
+                            <div class="col-md-6">
+                                <input type="checkbox" name="oc_majordomo_mcp" value="1" [#OC_MAJORDOMO_MCP_CHECKED#]>
+                                <span class="help-block"><#LANG_OPENCODE_MCP_MAJORDOMO_HELP#></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_settings_accordion" data-target="#oc_settings_prompt">
+                    <span class="glyphicon glyphicon-comment" style="margin-right:8px;"></span>
+                    <#LANG_OPENCODE_SYSTEM_PROMPT#>
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_settings_prompt" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_SYSTEM_PROMPT#></label>
+                            <div class="col-md-9">
+                                <textarea name="oc_system_prompt" class="form-control" rows="4">[#OC_SYSTEM_PROMPT#]</textarea>
+                                <span class="help-block"><#LANG_OPENCODE_SYSTEM_PROMPT_HELP#></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_settings_accordion" data-target="#oc_settings_perf">
+                    <span class="glyphicon glyphicon-dashboard" style="margin-right:8px;"></span>
+                    <#LANG_OPENCODE_PERFORMANCE#>
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_settings_perf" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_MAX_HISTORY#></label>
+                            <div class="col-md-3">
+                                <input type="number" name="oc_max_history" class="form-control" value="[#OC_MAX_HISTORY#]">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_TIMEOUT#></label>
+                            <div class="col-md-3">
+                                <input type="number" name="oc_timeout" class="form-control" value="[#OC_TIMEOUT#]">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_SESSION_REUSE#></label>
+                            <div class="col-md-6">
+                                <input type="checkbox" name="oc_session_reuse" value="1" [#OC_SESSION_REUSE_CHECKED#]>
+                                <span class="help-block"><#LANG_OPENCODE_SESSION_REUSE_HELP#></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    [#endif#]
+
+    [#if TAB_SERVER="1"#]
+
+        <div class="panel-group" id="oc_server_accordion">
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_server_accordion" data-target="#oc_server_network">
+                    <span class="glyphicon glyphicon-globe" style="margin-right:8px;"></span>
+                    Сеть и авторизация
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_server_network" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_PORT#></label>
+                            <div class="col-md-3">
+                                <input type="number" name="oc_port" class="form-control" value="[#OC_PORT#]" min="1" max="65535">
+                                <span class="help-block"><#LANG_OPENCODE_PORT_HELP#></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_REQUIRE_AUTH#></label>
+                            <div class="col-md-6">
+                                <input type="checkbox" style="height:20px;width:20px;" name="oc_auth_enabled" value="1" [#if OC_AUTH_ENABLED="1"#] checked[#endif#] onchange="$('#oc_auth_fields').toggle('slow')">
+                                <span class="help-block"><#LANG_OPENCODE_AUTH_NO_HELP#></span>
+                            </div>
+                        </div>
+                        <div id="oc_auth_fields" style="[#if OC_AUTH_ENABLED="1"#]display:block;[#else#]display:none;[#endif#]">
+                            <div class="form-group">
+                                <label class="control-label col-md-3"><#LANG_OPENCODE_AUTH_LOGIN#></label>
+                                <div class="col-md-6">
+                                    <input type="text" name="oc_auth_login" class="form-control" value="[#OC_AUTH_LOGIN#]">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="control-label col-md-3"><#LANG_OPENCODE_AUTH_PASSWORD#></label>
+                                <div class="col-md-6">
+                                    <input type="password" name="oc_auth_password" class="form-control" value="[#OC_AUTH_PASSWORD#]">
+                                    <span class="help-block"><#LANG_OPENCODE_AUTH_HELP#></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_server_accordion" data-target="#oc_server_access">
+                    <span class="glyphicon glyphicon-lock" style="margin-right:8px;"></span>
+                    Полный доступ
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_server_access" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_FULL_ACCESS#></label>
+                            <div class="col-md-6">
+                                <input type="checkbox" style="height:20px;width:20px;" name="oc_full_access" value="1" [#OC_FULL_ACCESS_CHECKED#]>
+                                <span class="help-block"><#LANG_OPENCODE_FULL_ACCESS_HELP#></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_server_accordion" data-target="#oc_server_diag">
+                    <span class="glyphicon glyphicon-heart" style="margin-right:8px;"></span>
+                    Диагностика системы
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_server_diag" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <p class="text-muted">
+                            <strong><#LANG_OPENCODE_BINARY_PATH#>:</strong> /usr/local/bin/opencode<br>
+                            <strong><#LANG_OPENCODE_CONFIG_PATH#>:</strong> /var/www/.config/opencode/opencode.jsonc<br>
+                            <strong><#LANG_OPENCODE_API_ENDPOINT_NAME#>:</strong> [#OC_API_URL#]<br>
+                            <strong><#LANG_OPENCODE_SESSION_ID_LABEL#>:</strong> [#OC_SESSION_ID#]
+<a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=clear_session" class="btn btn-xs btn-warning" onclick="return confirm('<#LANG_OPENCODE_CONFIRM_CLEAR_SESSION#>')"><#LANG_OPENCODE_CLEAR_SESSION#></a>
+
+                            <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=remove_opencode" class="btn btn-xs btn-danger" onclick="return confirm('<#LANG_OPENCODE_REMOVE_OPENCODE_CONFIRM#>')"><#LANG_OPENCODE_REMOVE_OPENCODE#></a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    [#endif#]
+
+    [#if TAB_SETTINGS="1" || TAB_SERVER="1"#]
+
+        <div class="form-group" style="margin-top:20px;">
+            <div class="col-md-offset-3 col-md-6">
+                <button type="submit" class="btn btn-primary"><#LANG_OPENCODE_SAVE#></button>
+            </div>
+        </div>
+    </form>
+
+    [#endif#]
+
+    [#if TAB_WEB="1"#]
+
+    <div [#TAB_WEB_VISIBLE#]>
+        <div style="margin-bottom:5px">
+            <a href="[#OC_WEB_URL#]" target="_blank" class="btn btn-success btn-sm"><span class="glyphicon glyphicon-new-window"></span> <#LANG_OPENCODE_OPEN_WEB#></a>
+        </div>
+        <iframe src="[#OC_WEB_URL#]" style="width:100%;height:600px;border:1px solid #ddd;border-radius:4px;"></iframe>
+    </div>
+
+    [#endif#]
+
+    [#if TAB_CHAT="1"#]
+
+    <div id="oc_chat_container">
+        <div id="ocMessages"></div>
+        <div id="ocInputArea">
+            <input type="text" id="ocInput" placeholder="<#LANG_OPENCODE_MESSAGE_PLACEHOLDER#>" onkeydown="if(event.keyCode==13)ocSendMessage()">
+            <button id="ocSendBtn" onclick="ocSendMessage()" class="btn btn-primary"><#LANG_OPENCODE_SEND#></button>
+            <button onclick="ocClearHistory()" style="margin-left:5px" class="btn btn-danger"><#LANG_OPENCODE_CLEAR_HISTORY#></button>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="templates/opencode/css/opencode.css">
+    <script>
+var ocLang = {
+    send: '<#OC_LANG_SEND#>',
+    typing: '<#OC_LANG_TYPING#>',
+    clearConfirm: '<#OC_LANG_CLEAR_CONFIRM#>',
+    historyCleared: '<#OC_LANG_HISTORY_CLEARED#>',
+    howCanIHelp: '<#OC_LANG_HOW_CAN_I_HELP#>',
+    connectError: '<#OC_LANG_CONNECT_ERROR#>',
+    serverError: '<#OC_LANG_SERVER_ERROR#>',
+    unknownError: '<#OC_LANG_UNKNOWN_ERROR#>'
+};
+</script>
+    <script src="templates/opencode/js/opencode.js"></script>
+
+    [#endif#]
+
+    [#inc help.html#]
+
+</div>
+
+[#inc about.html#]
+
+<script>
+function ocRefreshModels() {
+    var btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '<#LANG_OPENCODE_REFRESHING#>';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/modules/opencode/opencode_ajax.php?op=refresh_models', true);
+    xhr.onload = function() {
+        btn.disabled = false;
+        btn.textContent = '<#LANG_OPENCODE_REFRESH_MODELS#>';
+        if (xhr.status == 200) {
+            location.reload();
+        }
+    };
+    xhr.onerror = function() {
+        btn.disabled = false;
+        btn.textContent = '<#LANG_OPENCODE_REFRESH_MODELS#>';
+        alert('<#LANG_OPENCODE_FAILED_REFRESH#>');
+    };
+    xhr.send();
+}
+
+function ocLoadProviderModels() {
+    var endpoint = document.querySelector('input[name="oc_provider_endpoint"]').value.trim();
+    if (!endpoint) {
+        alert('Сначала заполните API Endpoint');
+        return;
+    }
+    var apiKey = document.querySelector('input[name="oc_provider_api_key"]').value.trim();
+    var btn = document.getElementById('oc_load_models_btn');
+    var sel = document.getElementById('oc_provider_model_select');
+    btn.disabled = true;
+    btn.textContent = 'Загрузка...';
+    sel.innerHTML = '<option value="">-- Загрузка... --</option>';
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/modules/opencode/opencode_ajax.php?op=load_provider_models', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onload = function() {
+        btn.disabled = false;
+        btn.textContent = 'Загрузить';
+        if (xhr.status == 200) {
+            try {
+                var res = JSON.parse(xhr.responseText);
+                if (res.success && res.models) {
+                    sel.innerHTML = '<option value="">-- Выберите модель --</option>';
+                    for (var i = 0; i < res.models.length; i++) {
+                        var opt = document.createElement('option');
+                        opt.value = res.models[i];
+                        opt.textContent = res.models[i];
+                        sel.appendChild(opt);
+                    }
+                } else {
+                    alert(res.error || 'Не удалось загрузить модели');
+                    sel.innerHTML = '<option value="">-- Ошибка загрузки --</option>';
+                }
+            } catch(e) {
+                alert('Ошибка ответа от сервера');
+                sel.innerHTML = '<option value="">-- Ошибка --</option>';
+            }
+        } else {
+            alert('Ошибка соединения');
+            sel.innerHTML = '<option value="">-- Ошибка --</option>';
+        }
+    };
+    xhr.onerror = function() {
+        btn.disabled = false;
+        btn.textContent = 'Загрузить';
+        alert('Ошибка соединения');
+        sel.innerHTML = '<option value="">-- Ошибка --</option>';
+    };
+    xhr.send('endpoint=' + encodeURIComponent(endpoint) + '&api_key=' + encodeURIComponent(apiKey));
+}
+
+function ocUpdateStatus() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/modules/opencode/opencode_ajax.php?op=check_status&_=' + Date.now(), true);
+    xhr.onload = function() {
+        if (xhr.status != 200) return;
+        try {
+            var r = JSON.parse(xhr.responseText);
+            if (!r.success) return;
+            var green = '#5cb85c', red = '#d9534f';
+            var el;
+            el = document.getElementById('oc_deps_binary'); if (el) el.style.background = r.binary_ok ? green : red;
+            el = document.getElementById('oc_deps_api'); if (el) el.style.background = r.api_ok ? green : red;
+            el = document.getElementById('oc_deps_sudo'); if (el) el.style.background = r.sudo_ok ? green : red;
+            var modelColor = r.api_ok ? green : red;
+            el = document.getElementById('oc_deps_model'); if (el) el.style.background = modelColor;
+            el = document.getElementById('oc_deps_model_label'); if (el) el.textContent = r.api_ok ? r.model : 'Нет подключения';
+            el = document.getElementById('oc_deps_sudo_label'); if (el) el.textContent = r.sudo_ok ? 'Sudo (OK)' : 'Sudo (NO SUDO)';
+        } catch(e) {}
+    };
+    xhr.send();
+}
+setInterval(ocUpdateStatus, 5000);
+ocUpdateStatus();
+</script>

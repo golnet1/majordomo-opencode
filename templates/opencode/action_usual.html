@@ -1,0 +1,34 @@
+<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css">
+
+<div class="container-fluid">
+    <div class="opencode-container">
+        <div class="opencode-header">
+            <h4><#LANG_OPENCODE_TITLE#></h4>
+            <div class="opencode-header-actions">
+                [#if OC_SESSION_REUSE!=""#]
+                <button class="btn btn-default btn-xs" onclick="ocClearHistory()"><#LANG_OPENCODE_CLEAR#></button>
+                [#endif#]
+            </div>
+        </div>
+        <div class="opencode-messages" id="ocMessages">
+            <div class="oc-message oc-message-assistant">
+                <div class="oc-message-avatar"><i class="glyphicon glyphicon-cloud"></i></div>
+                <div class="oc-message-content">
+                    <div class="oc-message-text"><#LANG_OPENCODE_ACTIVE_CHAT#></div>
+                </div>
+            </div>
+        </div>
+        <div class="opencode-input">
+            <form onsubmit="return ocSendMessage()">
+                <div class="input-group">
+                    <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_PLACEHOLDER#>">
+                    <span class="input-group-btn">
+                        <button class="btn btn-primary" type="submit" id="ocSendBtn"><#LANG_OPENCODE_SEND#></button>
+                    </span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="<#ROOTHTML#>templates/opencode/js/opencode.js"></script>

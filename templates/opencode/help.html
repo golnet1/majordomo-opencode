@@ -1,0 +1,235 @@
+    [#if TAB_HELP="1"#]
+
+    <h4>Описание настроек</h4>
+    <div class="panel-group" id="oc_help_accordion">
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_general">Общее</a>
+            </div>
+            <div class="panel-body collapse in" id="oc_help_general">
+                <p><strong>OpenCode AI</strong> — это AI-агент для написания, редактирования и понимания кода. Модуль интегрирует opencode в Majordomo, позволяя отправлять запросы AI и получать ответы через чат Majordomo.</p>
+                <p>Модуль работает через REST API сервера opencode (порт 4096). AI-модели запускаются удалённо на сервере opencode, а модуль отправляет запросы и отображает ответы в интерфейсе Majordomo.</p>
+                <p>В шапке модуля отображаются цветные индикаторы состояния:</p>
+                <ul>
+                    <li><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#5cb85c;margin-right:3px;vertical-align:middle;"></span> <strong>зелёный</strong> — компонент работает, <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#d9534f;margin-right:3px;vertical-align:middle;"></span> <strong>красный</strong> — компонент недоступен.</li>
+                    <li><strong>OpenCode</strong> — проверяет наличие бинарного файла <code>/usr/local/bin/opencode</code>.</li>
+                    <li><strong>API сервер</strong> — проверяет доступность сервера opencode через REST API.</li>
+                    <li><strong>Sudo</strong> — проверяет возможность выполнять команды от root (необходимо для управления systemd-сервисом opencode).</li>
+                    <li><strong>Модель</strong> — отображает название текущей активной модели. Зелёный — API сервер отвечает, модель подключена. Красный — сервер недоступен.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_model">Модель и агент</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_model">
+                <dl class="dl-horizontal">
+                    <dt>Модель</dt>
+                    <dd>Выбор AI-модели для обработки запросов. Можно выбрать из списка (кнопка "Обновить список моделей" загружает актуальные модели с сервера opencode) или ввести свою модель вручную в формате <code>provider/model_id</code> (например <code>openai/gpt-4o</code>, <code>anthropic/claude-sonnet-4-6</code>).<br><br>
+                    Если выбрать модель из списка, а затем ввести свою — приоритет у своей модели.</dd>
+
+                    <dt>Агент</dt>
+                    <dd><strong>build (code)</strong> — агент для написания и редактирования кода. Умеет создавать, читать и изменять файлы.<br>
+                    <strong>general (research)</strong> — агент для исследования и поиска информации. Не имеет доступа к файловой системе, предназначен для вопросов и анализа.<br><br>
+                    Для работы с Majordomo (сценарии, методы) рекомендуется агент <strong>build</strong>.</dd>
+
+                    <dt>Pure Mode</dt>
+                    <dd>Запуск opencode без внешних плагинов и инструментов. В этом режиме AI отвечает только на основе своей модели, без доступа к файловой системе, интернету или MCP-серверам. Полезен для простых вопросов, не требующих выполнения кода.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_provider">Провайдер</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_provider">
+                <p>Позволяет подключить собственного API-провайдера, если вы не хотите использовать стандартные модели opencode.</p>
+                <dl class="dl-horizontal">
+                    <dt>API Endpoint</dt>
+                    <dd>URL API-сервера провайдера. Например: <code>https://api.openai.com</code>, <code>https://api.anthropic.com</code>.</dd>
+
+                    <dt>API Key</dt>
+                    <dd>Ключ API для доступа к провайдеру.</dd>
+
+                    <dt>Model Name</dt>
+                    <dd>Имя модели у провайдера. Например: <code>gpt-4o</code>, <code>claude-sonnet-4-20250514</code>.</dd>
+                </dl>
+                <p><strong>Важно:</strong> Если поля провайдера пусты, opencode использует модели, настроенные в его конфиге (<code>/var/www/.config/opencode/opencode.jsonc</code>).</p>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_mcp">MCP серверы</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_mcp">
+                <p>MCP (Model Context Protocol) — протокол, позволяющий AI-модели взаимодействовать с внешними сервисами и инструментами.</p>
+                <dl class="dl-horizontal">
+                    <dt>MCP Servers (JSON)</dt>
+                    <dd>JSON-массив для подключения внешних MCP-серверов. Формат:
+                    <pre>[
+  {
+    "name": "server-name",
+    "enabled": true,
+    "type": "stdio",
+    "command": "python3",
+    "args": "-m my_mcp"
+  }
+]</pre>
+                    <code>name</code> — уникальное имя сервера, <code>enabled</code> — включён/выключен, <code>type</code> — тип подключения (stdio/sse), <code>command</code> — команда запуска, <code>args</code> — аргументы через пробел.</dd>
+
+                    <dt>Majordomo MCP</dt>
+                    <dd>Включает встроенный MCP-сервер для управления устройствами Majordomo. AI сможет включать/выключать свет, регулировать температуру и выполнять другие команды через модуль MCP. Отображается только если модуль <code>mcp</code> установлен на сервере.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_prompt">Системный промпт</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_prompt">
+                <p>Системный промпт — это инструкция, которая задаёт AI контекст и правила поведения. Вы можете указать AI, как он должен отвечать, какие команды выполнять, какой стиль общения использовать.</p>
+                <p><strong>Пример:</strong></p>
+                <pre>Ты — умный ассистент системы умного дома Majordomo.
+Используй [EXEC:команда] для выполнения действий в системе.
+Отвечай кратко и по делу. Всегда указывай, какая команда была выполнена.</pre>
+                <p>Промпт применяется ко всем диалогам, пока вы его не измените или не очистите.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_performance">Производительность</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_performance">
+                <dl class="dl-horizontal">
+                    <dt>Max History</dt>
+                    <dd>Максимальное количество предыдущих сообщений, которые отправляются AI вместе с новым запросом для сохранения контекста беседы. Больше значение = лучше контекст, но выше расход токенов. Рекомендуется 20–50. Старые записи автоматически удаляются в processCycle().</dd>
+
+                    <dt>Timeout (секунды)</dt>
+                    <dd>Максимальное время ожидания ответа от API сервера opencode. Если ответ не получен за это время, curl возвращает ошибку. Для сложных задач (написание кода, анализ проекта) увеличьте таймаут до 120–300 секунд. По умолчанию 120.</dd>
+
+                    <dt>Reuse Session</dt>
+                    <dd>При включении этой опции модуль сохраняет ID сессии в конфиг и использует её для всех последующих запросов. AI "помнит" предыдущие сообщения и контекст беседы сохраняется между разными обращениями. Если опция выключена, каждая отправка сообщения создаёт новую сессию (контекст не сохраняется, но нет накопления токенов).<br><br>
+                    Если при reuse сессия стала недействительной (404), модуль автоматически создаёт новую.
+                    Сессию можно сбросить кнопкой "Очистить" на вкладке "Настройки сервера" → секция "Диагностика".<br><br>
+                    <strong>Автосброс сессии:</strong> при смене модели (через список моделей или поле ручного ввода) сессия очищается автоматически — новая модель сразу начнёт отвечать в свежем диалоге.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_auth">Сеть и авторизация</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_auth">
+                <p>Настройки сетевого доступа к серверу opencode.</p>
+                <dl class="dl-horizontal">
+                    <dt>Порт</dt>
+                    <dd>Порт, на котором работает веб-интерфейс opencode. По умолчанию <code>4096</code>. Изменяйте, если порт занят другим приложением. После изменения порта все URL (iframe, API endpoint, Open Web) автоматически обновятся.</dd>
+
+                    <dt>Авторизация отключена</dt>
+                    <dd>Opencode web запускается только на <code>127.0.0.1</code> (localhost). Доступ к веб-интерфейсу возможен только с самого сервера. Пароль не требуется. Рекомендуется если сервером пользуетесь только вы.</dd>
+
+                    <dt>Авторизация включена</dt>
+                    <dd>Opencode web запускается на <code>0.0.0.0</code> (все сетевые интерфейсы). Доступ возможен с любого компьютера в сети по адресу <code>http://IP-СЕРВЕРА:ПОРТ</code>. Для входа потребуется ввести логин и пароль, указанные в настройках.</dd>
+
+                    <dt>Логин и пароль</dt>
+                    <dd>Учётные данные для доступа к веб-интерфейсу opencode. Используются для Basic HTTP-авторизации. С этими же данными модуль обращается к API серверу.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_settings">Вкладки настроек</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_settings">
+                <p>Настройки разделены на две вкладки:</p>
+                <dl class="dl-horizontal">
+                    <dt>Провайдеры, модели и MCP</dt>
+                    <dd>Содержит аккордеон из 5 секций: <strong>Модель и агент</strong> (выбор модели, агента, pure mode), <strong>Провайдер</strong> (API endpoint, ключ, модель провайдера), <strong>MCP серверы</strong> (JSON-конфигурация MCP, Majordomo MCP), <strong>Системный промпт</strong> (инструкция AI) и <strong>Производительность</strong> (max history, timeout, reuse session).</dd>
+
+                    <dt>Настройки сервера</dt>
+                    <dd>Содержит аккордеон из 3 секций: <strong>Сеть и авторизация</strong> (порт, включение авторизации, логин/пароль), <strong>Полный доступ</strong> (включение/отключение ограничений безопасности AI) и <strong>Диагностика системы</strong> (путь к бинарнику и конфигу, API endpoint, ID сессии, удаление opencode).</dd>
+                </dl>
+                <p>Сохранять настройки можно с любой из этих вкладок — кнопка "Сохранить" находится внизу обеих.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_full_access">Полный доступ (безопасность)</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_full_access">
+                <p>Управляет уровнем доступа AI-агента к системе:</p>
+                <dl class="dl-horizontal">
+                    <dt>Полный доступ включён (галочка установлена)</dt>
+                    <dd>AI работает без ограничений — может читать и редактировать любые файлы, выполнять любые bash-команды, управлять службами. Эквивалентно правам root. Используйте если полностью доверяете AI.</dd>
+
+                    <dt>Полный доступ выключен (галочка снята)</dt>
+                    <dd>AI работает в ограниченном режиме — может читать и редактировать файлы только внутри <code>/var/www/html/cms/files/</code>. Запрещены опасные bash-команды: reboot, shutdown, systemctl, apt, dpkg, pip/npm install, passwd, useradd, mkfs, fdisk, chmod, chown, rm -rf, sudo и другие. Ограничения применяются на уровне конфигурации opencode (permission rules), а не только через системный промпт.</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_install">Установка opencode вручную</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_install">
+                <p>Если модуль не смог автоматически установить opencode, вы можете установить его вручную:</p>
+                <pre>curl -fsSL https://docs.opencode.ai/install.sh | sh</pre>
+                <p>После установки убедитесь, что бинарный файл находится в <code>/usr/local/bin/opencode</code> (или создайте симлинк):</p>
+                <pre>sudo ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode</pre>
+                <p>Проверьте установку:</p>
+                <pre>opencode version</pre>
+                <p>Затем настройте провайдера и модель через CLI или直接在 конфиге <code>/var/www/.config/opencode/opencode.jsonc</code>.</p>
+                <p>Официальная документация: <a href="https://opencode.ai/docs" target="_blank">https://opencode.ai/docs</a></p>
+            </div>
+        </div>
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <a data-toggle="collapse" data-parent="#oc_help_accordion" href="#oc_help_usage">Как пользоваться</a>
+            </div>
+            <div class="panel-body collapse" id="oc_help_usage">
+                <h5>Через веб-интерфейс opencode (вкладка "OpenCode Web")</h5>
+                <p>На вкладке "OpenCode Web" отображается iframe веб-интерфейса opencode. Вкладка видна только если включена авторизация (сервер доступен по сети). Кнопка "Открыть Web" открывает интерфейс в новой вкладке.</p>
+
+                <h5>Через чат модуля в админке</h5>
+                <p>Переключитесь на вкладку "Чат". Введите сообщение в поле ввода и нажмите Enter или кнопку "Отправить". AI ответит в том же окне. Кнопка "Очистить историю" удаляет всю переписку из БД.</p>
+
+                <h5>Через системный чат (COMMAND event)</h5>
+                <p>Модуль подписывается на событие <code>COMMAND</code>. Когда любой другой модуль или сценарий отправляет команду через <code>callMethod('Commander.command', array('message' => '...'))</code>, opencode обрабатывает её и отвечает. Ответ также отправляется через <code>say()</code>.</p>
+
+                <h5>Управление устройствами через MCP</h5>
+                <p>Если включён "Majordomo MCP" (вкладка "Провайдеры, модели и MCP" → секция "MCP серверы"), AI может управлять устройствами умного дома: включать/выключать свет, регулировать температуру, открывать шторы и т.д. Для этого необходим установленный модуль <code>mcp</code>.</p>
+
+                <h5>Сброс сессии</h5>
+                <p>Если AI начал отвечать неверно или "забыл" контекст — очистите сессию кнопкой "Очистить" на вкладке "Настройки сервера" → секция "Диагностика". После этого начнётся новый диалог. Также можно отключить "Reuse Session" на вкладке "Провайдеры, модели и MCP" → секция "Производительность".</p>
+
+                <h5>Обновление списка моделей</h5>
+                <p>Кнопка "Обновить список моделей" загружает актуальный список доступных AI-моделей с сервера opencode через <code>GET /provider</code>. Результат кешируется на 1 час. Если API сервер недоступен, используется список из CLI команды <code>opencode models</code>.</p>
+
+                <h5>Системный промпт по умолчанию</h5>
+                <p>Если системный промпт пуст и включён "Majordomo MCP", модуль автоматически устанавливает промпт для голосового ассистента умного дома на русском языке (на вкладке "Провайдеры, модели и MCP" → секция "Системный промпт").</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="panel panel-info">
+        <div class="panel-heading">Не нашли ответа?</div>
+        <div class="panel-body">
+            <p>Если у вас возникли вопросы или проблемы с модулем, обратитесь к автору в Telegram: <a href="https://t.me/golnet96" target="_blank">@golnet96</a>.</p>
+            <a href="?action=opencode&md=opencode&tab=settings" class="btn btn-default"><#LANG_OPENCODE_BACK_SETTINGS#></a>
+        </div>
+    </div>
+
+    [#endif#]
