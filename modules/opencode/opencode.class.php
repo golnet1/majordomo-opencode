@@ -692,6 +692,29 @@ class opencode extends module {
     function setupServiceDropin() {
         $hostname = !empty($this->config['OC_AUTH_ENABLED']) ? '0.0.0.0' : '127.0.0.1';
         $port = $this->getApiPort();
+        $sudo = $this->isRoot() ? '' : 'sudo ';
+
+        $service_file = '/etc/systemd/system/opencode-web.service';
+        if (!file_exists($service_file)) {
+            $unit = "[Unit]\n";
+            $unit .= "Description=Opencode AI Service\n";
+            $unit .= "After=network.target\n\n";
+            $unit .= "[Service]\n";
+            $unit .= "Type=simple\n";
+            $unit .= "ExecStart=/usr/local/bin/opencode web --port {$port} --hostname {$hostname}\n";
+            $unit .= "Restart=always\n";
+            $unit .= "RestartSec=5\n\n";
+            $unit .= "[Install]\n";
+            $unit .= "WantedBy=multi-user.target\n";
+            $tmp = '/var/www/tmp/opencode-web.service';
+            file_put_contents($tmp, $unit);
+            exec("{$sudo}cp " . escapeshellarg($tmp) . " " . escapeshellarg($service_file) . " 2>&1", $out, $rc);
+            @unlink($tmp);
+            if ($rc !== 0) {
+                DebMes("Opencode: cp service file failed (rc={$rc}): " . implode(' ', $out), 'opencode');
+            }
+        }
+
         $content = "[Service]\n";
         $content .= "Environment=\n";
         $content .= "Environment=HOME=/var/www\n";
@@ -706,21 +729,13 @@ class opencode extends module {
         $override_dir = '/etc/systemd/system/opencode-web.service.d';
         $override_file = $override_dir . '/override.conf';
 
-        $sudo = $this->isRoot() ? '' : 'sudo ';
-
         exec("{$sudo}mkdir -p " . escapeshellarg($override_dir) . " 2>&1", $out, $rc);
         if ($rc !== 0) {
             DebMes("Opencode: mkdir drop-in dir failed (rc={$rc}): " . implode(' ', $out), 'opencode');
             return false;
         }
 
-        $tmp_dir = '/var/www/tmp';
-        if (!is_dir($tmp_dir)) {
-            @mkdir($tmp_dir, 0755, true);
-            @chown($tmp_dir, 'www-data');
-            @chgrp($tmp_dir, 'www-data');
-        }
-        $tmp = $tmp_dir . '/opencode-override.conf';
+        $tmp = '/var/www/tmp/opencode-override.conf';
         if (file_put_contents($tmp, $content) === false) {
             DebMes("Opencode: failed to write temp file: {$tmp}", 'opencode');
             return false;
@@ -744,7 +759,7 @@ class opencode extends module {
             DebMes("Opencode: enable service failed (rc={$rc}): " . implode(' ', $out), 'opencode');
         }
 
-        DebMes("Opencode: drop-in updated -> {$override_file}", 'opencode');
+        DebMes("Opencode: service unit + drop-in updated", 'opencode');
         return true;
     }
 
