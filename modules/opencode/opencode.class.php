@@ -877,6 +877,7 @@ class opencode extends module {
         $sudo = $this->isRoot() ? '' : 'sudo ';
         exec("{$sudo}systemctl stop opencode-web.service 2>/dev/null");
         exec("{$sudo}systemctl disable opencode-web.service 2>/dev/null");
+        exec("{$sudo}rm -f /etc/systemd/system/opencode-web.service 2>/dev/null");
         exec("{$sudo}rm -f /etc/systemd/system/opencode-web.service.d/override.conf 2>/dev/null");
         exec("{$sudo}rmdir /etc/systemd/system/opencode-web.service.d 2>/dev/null");
         exec("{$sudo}systemctl daemon-reload 2>/dev/null");
@@ -892,6 +893,7 @@ class opencode extends module {
         SQLExec('DROP TABLE IF EXISTS opencode_messages');
         exec("{$sudo}systemctl stop opencode-web.service 2>/dev/null");
         exec("{$sudo}systemctl disable opencode-web.service 2>/dev/null");
+        exec("{$sudo}rm -f /etc/systemd/system/opencode-web.service 2>/dev/null");
         exec("{$sudo}rm -f /etc/systemd/system/opencode-web.service.d/override.conf 2>/dev/null");
         exec("{$sudo}rmdir /etc/systemd/system/opencode-web.service.d 2>/dev/null");
         exec("{$sudo}systemctl daemon-reload 2>/dev/null");
