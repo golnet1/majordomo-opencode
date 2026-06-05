@@ -882,6 +882,8 @@ class opencode extends module {
         exec("{$sudo}systemctl daemon-reload 2>/dev/null");
         $this->ensureDirExists($this->opencode_config_dir);
         file_put_contents($this->opencode_config_dir . '/opencode.jsonc', '{}');
+        exec("{$sudo}rm -rf /root/.opencode 2>/dev/null");
+        exec("{$sudo}rm -f /usr/local/bin/opencode 2>/dev/null");
         parent::uninstall();
     }
 
