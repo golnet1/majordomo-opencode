@@ -22,6 +22,9 @@
 
 ## Установка
 
+**Из маркета дополнений:** Панель управления → Маркет дополнений → найти `opencode` → установить.
+
+**Ручная установка:**
 1. Скопировать папки `modules/opencode`, `templates/opencode`, `languages/`, `img/` в соответствующие директории Majordomo
 2. В админке Majordomo: Панель управления → Модули → установить `opencode`
 3. Настроить провайдера и модель в админке модуля
@@ -52,6 +55,9 @@ Integration module for [opencode](https://opencode.ai) with the [Majordomo](http
 
 ## Installation
 
+**From marketplace:** Control Panel → Marketplace → find `opencode` → install.
+
+**Manual installation:**
 1. Copy `modules/opencode`, `templates/opencode`, `languages/`, `img/` to your Majordomo directories
 2. In Majordomo admin: Control Panel → Modules → install `opencode`
 3. Configure provider and model in the module admin page
