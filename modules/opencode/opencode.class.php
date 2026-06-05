@@ -312,6 +312,11 @@ class opencode extends module {
         $health = null;
         $deps = $this->checkDependencies($health);
 
+        if ($deps['opencode_binary'] !== 'ok') {
+            $this->installOpencodeBinary();
+            $deps = $this->checkDependencies($health);
+        }
+
         $api_ok = ($deps['api'] === 'ok');
         $binary_ok = ($deps['opencode_binary'] === 'ok');
 
@@ -829,24 +834,28 @@ class opencode extends module {
         }
 
         if (!file_exists($this->opencode_bin)) {
-            DebMes("Opencode binary not found, attempting to install...", 'opencode');
-            $install_output = array();
-            $return_var = 0;
-            exec('npm i -g opencode-ai 2>&1', $install_output, $return_var);
-            if ($return_var !== 0) {
-                DebMes("npm install failed, trying curl install...", 'opencode');
-                exec('curl -fsSL https://opencode.ai/install | bash 2>&1', $install_output, $return_var);
-            }
-            if ($return_var !== 0) {
-                DebMes("Opencode installation failed", 'opencode');
-            } else {
-                $sudo = $this->isRoot() ? '' : 'sudo ';
-                exec("{$sudo}chmod 755 /usr/local/bin/opencode 2>/dev/null");
-            }
+            $this->installOpencodeBinary();
         }
 
         $this->setupServiceDropin();
         $this->syncServiceRestart();
+    }
+
+    function installOpencodeBinary() {
+        DebMes("Opencode binary not found, attempting to install...", 'opencode');
+        $install_output = array();
+        $return_var = 0;
+        exec('npm i -g opencode-ai 2>&1', $install_output, $return_var);
+        if ($return_var !== 0) {
+            DebMes("npm install failed, trying curl install...", 'opencode');
+            exec('curl -fsSL https://opencode.ai/install | bash 2>&1', $install_output, $return_var);
+        }
+        if ($return_var !== 0) {
+            DebMes("Opencode installation failed", 'opencode');
+        } else {
+            $sudo = $this->isRoot() ? '' : 'sudo ';
+            exec("{$sudo}chmod 755 /usr/local/bin/opencode 2>/dev/null");
+        }
     }
 
     function removeOpencode() {
