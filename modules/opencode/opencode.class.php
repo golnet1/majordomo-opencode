@@ -396,6 +396,7 @@ class opencode extends module {
         DebMes("Opencode admin: vm=" . ($this->view_mode ?? 'NULL') . " mcp_inst=" . ($mcp_installed ? '1' : '0') . " cfg=" . (is_array($this->config) ? 'array[' . count($this->config) . ']' : 'NOT_ARRAY'), 'opencode');
 
         if ($this->view_mode == 'update_settings') {
+            $this->getConfig();
             session_write_close();
             DebMes("Opencode: SAVING SETTINGS", 'opencode');
             $model_custom = gr('oc_model_custom');
