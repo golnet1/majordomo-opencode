@@ -89,6 +89,22 @@ $dictionary = array(
     'OPENCODE_HELP' => 'Help',
     'OPENCODE_BACK_SETTINGS' => '<- Back to settings',
     'OPENCODE_NO_RESPONSE' => 'Sorry, no response received',
+    'OPENCODE_MESSAGE_NOT_FOUND' => 'Message not found',
+    'OPENCODE_NO_MESSAGE_ID' => 'No message ID specified',
+    'OPENCODE_UNKNOWN_OPERATION' => 'Unknown operation',
+    'OPENCODE_NO_ENDPOINT' => 'No endpoint specified',
+    'OPENCODE_NO_CONNECTION' => 'No connection',
+    'OPENCODE_ERROR_PREFIX' => 'Error: ',
+    'OPENCODE_LOAD_MODELS' => 'Load',
+    'OPENCODE_LOADING_MODELS' => 'Loading...',
+    'OPENCODE_SELECT_PROVIDER_MODEL' => '-- Select provider model --',
+    'OPENCODE_SELECT_MODEL_PROMPT' => '-- Select model --',
+    'OPENCODE_LOAD_MODELS_ERROR' => 'Failed to load models',
+    'OPENCODE_SERVER_RESPONSE_ERROR' => 'Server response error',
+    'OPENCODE_CONNECTION_ERROR_SHORT' => 'Connection error',
+    'OPENCODE_LOAD_ERROR' => 'Load error',
+    'OPENCODE_SUDO_OK' => 'Sudo (OK)',
+    'OPENCODE_SUDO_NO' => 'Sudo (NO SUDO)',
 );
 
 foreach ($dictionary as $k=>$v)

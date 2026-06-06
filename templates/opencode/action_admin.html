@@ -117,7 +117,7 @@
                             <div class="col-md-6">
                                 <div class="input-group">
                                     <select class="form-control" id="oc_provider_model_select" onchange="if(this.value)document.getElementById('oc_provider_model').value=this.value">
-                                        <option value="">-- Загрузите модели с провайдера --</option>
+                                        <option value=""><#LANG_OPENCODE_SELECT_PROVIDER_MODEL#></option>
                                     </select>
                                     <span class="input-group-btn">
                                         <button type="button" class="btn btn-default" onclick="ocLoadProviderModels()" id="oc_load_models_btn">Загрузить</button>
@@ -348,7 +348,8 @@ var ocLang = {
     howCanIHelp: '<#OC_LANG_HOW_CAN_I_HELP#>',
     connectError: '<#OC_LANG_CONNECT_ERROR#>',
     serverError: '<#OC_LANG_SERVER_ERROR#>',
-    unknownError: '<#OC_LANG_UNKNOWN_ERROR#>'
+    unknownError: '<#OC_LANG_UNKNOWN_ERROR#>',
+    errorPrefix: '<#OC_LANG_ERROR_PREFIX#>'
 };
 </script>
     <script src="templates/opencode/js/opencode.js?v=1"></script>
@@ -386,26 +387,26 @@ function ocRefreshModels() {
 function ocLoadProviderModels() {
     var endpoint = document.querySelector('input[name="oc_provider_endpoint"]').value.trim();
     if (!endpoint) {
-        alert('Сначала заполните API Endpoint');
+        alert('<#LANG_OPENCODE_NO_ENDPOINT#>');
         return;
     }
     var apiKey = document.querySelector('input[name="oc_provider_api_key"]').value.trim();
     var btn = document.getElementById('oc_load_models_btn');
     var sel = document.getElementById('oc_provider_model_select');
     btn.disabled = true;
-    btn.textContent = 'Загрузка...';
-    sel.innerHTML = '<option value="">-- Загрузка... --</option>';
+    btn.textContent = '<#LANG_OPENCODE_LOADING_MODELS#>';
+    sel.innerHTML = '<option value=""><#LANG_OPENCODE_LOADING_MODELS#></option>';
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/modules/opencode/opencode_ajax.php?op=load_provider_models', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     xhr.onload = function() {
         btn.disabled = false;
-        btn.textContent = 'Загрузить';
+        btn.textContent = '<#LANG_OPENCODE_LOAD_MODELS#>';
         if (xhr.status == 200) {
             try {
                 var res = JSON.parse(xhr.responseText);
                 if (res.success && res.models) {
-                    sel.innerHTML = '<option value="">-- Выберите модель --</option>';
+                    sel.innerHTML = '<option value=""><#LANG_OPENCODE_SELECT_MODEL_PROMPT#></option>';
                     for (var i = 0; i < res.models.length; i++) {
                         var opt = document.createElement('option');
                         opt.value = res.models[i];
@@ -413,23 +414,23 @@ function ocLoadProviderModels() {
                         sel.appendChild(opt);
                     }
                 } else {
-                    alert(res.error || 'Не удалось загрузить модели');
-                    sel.innerHTML = '<option value="">-- Ошибка загрузки --</option>';
+                    alert(res.error || '<#LANG_OPENCODE_LOAD_MODELS_ERROR#>');
+                    sel.innerHTML = '<option value=""><#LANG_OPENCODE_LOAD_ERROR#></option>';
                 }
             } catch(e) {
-                alert('Ошибка ответа от сервера');
-                sel.innerHTML = '<option value="">-- Ошибка --</option>';
+                alert('<#LANG_OPENCODE_SERVER_RESPONSE_ERROR#>');
+                sel.innerHTML = '<option value=""><#LANG_OPENCODE_LOAD_ERROR#></option>';
             }
         } else {
-            alert('Ошибка соединения');
-            sel.innerHTML = '<option value="">-- Ошибка --</option>';
+            alert('<#LANG_OPENCODE_CONNECTION_ERROR_SHORT#>');
+            sel.innerHTML = '<option value=""><#LANG_OPENCODE_LOAD_ERROR#></option>';
         }
     };
     xhr.onerror = function() {
         btn.disabled = false;
-        btn.textContent = 'Загрузить';
-        alert('Ошибка соединения');
-        sel.innerHTML = '<option value="">-- Ошибка --</option>';
+        btn.textContent = '<#LANG_OPENCODE_LOAD_MODELS#>';
+        alert('<#LANG_OPENCODE_CONNECTION_ERROR_SHORT#>');
+        sel.innerHTML = '<option value=""><#LANG_OPENCODE_LOAD_ERROR#></option>';
     };
     xhr.send('endpoint=' + encodeURIComponent(endpoint) + '&api_key=' + encodeURIComponent(apiKey));
 }
@@ -449,8 +450,8 @@ function ocUpdateStatus() {
             el = document.getElementById('oc_deps_sudo'); if (el) el.style.background = r.sudo_ok ? green : red;
             var modelColor = r.api_ok ? green : red;
             el = document.getElementById('oc_deps_model'); if (el) el.style.background = modelColor;
-            el = document.getElementById('oc_deps_model_label'); if (el) el.textContent = r.api_ok ? r.model : 'Нет подключения';
-            el = document.getElementById('oc_deps_sudo_label'); if (el) el.textContent = r.sudo_ok ? 'Sudo (OK)' : 'Sudo (NO SUDO)';
+            el = document.getElementById('oc_deps_model_label'); if (el) el.textContent = r.api_ok ? r.model : '<#LANG_OPENCODE_NO_CONNECTION#>';
+            el = document.getElementById('oc_deps_sudo_label'); if (el) el.textContent = r.sudo_ok ? '<#LANG_OPENCODE_SUDO_OK#>' : '<#LANG_OPENCODE_SUDO_NO#>';
         } catch(e) {}
     };
     xhr.send();

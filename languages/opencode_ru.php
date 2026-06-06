@@ -89,6 +89,22 @@ $dictionary = array(
     'OPENCODE_HELP' => 'Помощь',
     'OPENCODE_BACK_SETTINGS' => '← К настройкам',
     'OPENCODE_NO_RESPONSE' => 'Извините, не удалось получить ответ',
+    'OPENCODE_MESSAGE_NOT_FOUND' => 'Сообщение не найдено',
+    'OPENCODE_NO_MESSAGE_ID' => 'Не указан ID сообщения',
+    'OPENCODE_UNKNOWN_OPERATION' => 'Неизвестная операция',
+    'OPENCODE_NO_ENDPOINT' => 'Не указан endpoint',
+    'OPENCODE_NO_CONNECTION' => 'Нет подключения',
+    'OPENCODE_ERROR_PREFIX' => 'Ошибка: ',
+    'OPENCODE_LOAD_MODELS' => 'Загрузить',
+    'OPENCODE_LOADING_MODELS' => 'Загрузка...',
+    'OPENCODE_SELECT_PROVIDER_MODEL' => '-- Загрузите модели с провайдера --',
+    'OPENCODE_SELECT_MODEL_PROMPT' => '-- Выберите модель --',
+    'OPENCODE_LOAD_MODELS_ERROR' => 'Не удалось загрузить модели',
+    'OPENCODE_SERVER_RESPONSE_ERROR' => 'Ошибка ответа от сервера',
+    'OPENCODE_CONNECTION_ERROR_SHORT' => 'Ошибка соединения',
+    'OPENCODE_LOAD_ERROR' => 'Ошибка загрузки',
+    'OPENCODE_SUDO_OK' => 'Sudo (OK)',
+    'OPENCODE_SUDO_NO' => 'Sudo (NO SUDO)',
 );
 
 foreach ($dictionary as $k=>$v)

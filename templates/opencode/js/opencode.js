@@ -67,7 +67,7 @@ function ocSendMessage() {
                     ocAddMessage('assistant', res.response);
                 } else {
                     ocHideTyping();
-                    var errPrefix = res.error ? 'Error: ' : '';
+                    var errPrefix = res.error ? (ocLang && ocLang.errorPrefix || 'Error: ') : '';
                     var unknown = ocLang && ocLang.unknownError || 'Unknown error';
                     ocAddMessage('assistant', errPrefix + (res.error || unknown));
                 }

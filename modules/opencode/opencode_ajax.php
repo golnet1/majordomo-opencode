@@ -41,10 +41,10 @@ if ($op == 'send_message') {
                 echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
             }
         } else {
-            echo json_encode(array('success' => false, 'error' => 'Сообщение не найдено'));
+            echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_MESSAGE_NOT_FOUND') ? LANG_OPENCODE_MESSAGE_NOT_FOUND : 'Сообщение не найдено'));
         }
     } else {
-        echo json_encode(array('success' => false, 'error' => 'Не указан ID сообщения'));
+        echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_NO_MESSAGE_ID') ? LANG_OPENCODE_NO_MESSAGE_ID : 'Не указан ID сообщения'));
     }
 } elseif ($op == 'clear_history') {
     $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
@@ -74,7 +74,7 @@ if ($op == 'send_message') {
     $endpoint = gr('endpoint');
     $api_key = gr('api_key');
     if (!$endpoint) {
-        echo json_encode(array('success' => false, 'error' => 'Не указан endpoint'));
+        echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_NO_ENDPOINT') ? LANG_OPENCODE_NO_ENDPOINT : 'Не указан endpoint'));
         exit;
     }
     $endpoint = rtrim($endpoint, '/');
@@ -122,7 +122,7 @@ if ($op == 'send_message') {
     sort($models);
     echo json_encode(array('success' => true, 'models' => $models));
 } else {
-    echo json_encode(array('success' => false, 'error' => 'Неизвестная операция'));
+    echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_UNKNOWN_OPERATION') ? LANG_OPENCODE_UNKNOWN_OPERATION : 'Неизвестная операция'));
 }
 
 $session->save();

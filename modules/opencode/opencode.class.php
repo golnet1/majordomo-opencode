@@ -277,7 +277,7 @@ class opencode extends module {
             if ($op == 'send_message') {
                 $msg = gr('message');
                 if (!$msg) {
-                    echo json_encode(array('success' => false, 'error' => 'Пустое сообщение'));
+                    echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_EMPTY_MESSAGE') ? LANG_OPENCODE_EMPTY_MESSAGE : 'Пустое сообщение'));
                 } else {
                     $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
                     $this->saveMessageToHistory($msg, 'user', $user_id);
@@ -301,10 +301,10 @@ class opencode extends module {
                             echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
                         }
                     } else {
-                        echo json_encode(array('success' => false, 'error' => 'Сообщение не найдено'));
-                    }
-                } else {
-                    echo json_encode(array('success' => false, 'error' => 'Не указан ID сообщения'));
+                    echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_MESSAGE_NOT_FOUND') ? LANG_OPENCODE_MESSAGE_NOT_FOUND : 'Сообщение не найдено'));
+                }
+            } else {
+                echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_NO_MESSAGE_ID') ? LANG_OPENCODE_NO_MESSAGE_ID : 'Не указан ID сообщения'));
                 }
             } elseif ($op == 'clear_history') {
                 $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
@@ -361,7 +361,7 @@ class opencode extends module {
 
         $model_name = $this->config['OC_PROVIDER_ENDPOINT'] ? ($this->config['OC_PROVIDER_MODEL'] ?: $this->config['OC_MODEL']) : ($this->config['OC_MODEL'] ?: 'opencode/big-pickle');
         $out['DEPS_MODEL_COLOR'] = $api_ok ? '#5cb85c' : '#d9534f';
-        $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : 'Нет подключения';
+        $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : (defined('LANG_OPENCODE_NO_CONNECTION') ? LANG_OPENCODE_NO_CONNECTION : 'Нет подключения');
 
         $mcp_installed = is_dir(DIR_MODULES . 'mcp');
 
@@ -532,6 +532,7 @@ class opencode extends module {
         $out['OC_LANG_CONNECT_ERROR'] = defined('LANG_OPENCODE_CONNECT_ERROR') ? LANG_OPENCODE_CONNECT_ERROR : 'Connection error. Please try again.';
         $out['OC_LANG_SERVER_ERROR'] = defined('LANG_OPENCODE_SERVER_ERROR') ? LANG_OPENCODE_SERVER_ERROR : 'Invalid response from server';
         $out['OC_LANG_UNKNOWN_ERROR'] = defined('LANG_OPENCODE_UNKNOWN_ERROR') ? LANG_OPENCODE_UNKNOWN_ERROR : 'Unknown error';
+        $out['OC_LANG_ERROR_PREFIX'] = defined('LANG_OPENCODE_ERROR_PREFIX') ? LANG_OPENCODE_ERROR_PREFIX : 'Error: ';
     }
 
     function getModelsCacheFile() {
