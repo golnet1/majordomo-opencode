@@ -91,6 +91,13 @@
     white-space: pre-wrap;
     word-wrap: break-word;
 }
+.oc-message-assistant .oc-message-text a {
+    color: #1a73e8;
+    text-decoration: underline;
+}
+.oc-message-assistant .oc-message-text a:hover {
+    color: #0d47a1;
+}
 
 .oc-message-user .oc-message-text {
     color: white;

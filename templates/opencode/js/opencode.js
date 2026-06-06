@@ -94,6 +94,17 @@ function ocSendMessage() {
     return false;
 }
 
+function ocFormatMessage(text) {
+    var s = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    return s;
+}
+
 function ocAddMessage(role, text) {
     var container = document.getElementById('ocMessages');
     var div = document.createElement('div');
@@ -110,7 +121,7 @@ function ocAddMessage(role, text) {
 
     var textDiv = document.createElement('div');
     textDiv.className = 'oc-message-text';
-    textDiv.textContent = text;
+    textDiv.innerHTML = ocFormatMessage(text);
 
     content.appendChild(textDiv);
     div.appendChild(avatar);
