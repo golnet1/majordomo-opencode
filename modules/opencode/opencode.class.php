@@ -8,7 +8,6 @@ class opencode extends module {
     var $api_base = 'http://127.0.0.1:4096';
     var $api_user = 'opencode';
     var $api_pass = 'opencode';
-    var $debug_message_id = 0;
 
     function __construct() {
         $this->name = 'opencode';
@@ -40,40 +39,23 @@ class opencode extends module {
         );
         $timeout = $this->config['OC_TIMEOUT'] ? $this->config['OC_TIMEOUT'] : 120;
         if ($timeout > 300) $timeout = 300;
-        DebMes("Opencode REST: {$method} {$url} (timeout={$timeout}s)", 'opencode');
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-        if ($this->debug_message_id && !empty($this->config['OC_DEBUG'])) {
-            curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-            $msg_id = $this->debug_message_id;
-            $start_t = time();
-            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function($res, $dl_total, $dl_now, $ul_total, $ul_now) use ($msg_id, $start_t) {
-                $elapsed = time() - $start_t;
-                if ($elapsed < 2 || $elapsed % 5 !== 0) return;
-                $safe = DBSafe("…⏳ Ожидание ответа... ({$elapsed}c)");
-                SQLExec("UPDATE opencode_messages SET MESSAGE='{$safe}' WHERE ID='{$msg_id}'");
-            });
-        }
         if ($body !== null) {
-            $encoded = json_encode($body);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $encoded);
-            DebMes("Opencode REST body: " . substr($encoded, 0, 200), 'opencode');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
         }
-        $start = microtime(true);
         $response = curl_exec($ch);
-        $elapsed = round(microtime(true) - $start, 2);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
         if ($error) {
-            DebMes("Opencode REST error after {$elapsed}s: {$error}", 'opencode');
+            DebMes("Opencode REST error: {$error}", 'opencode');
             return null;
         }
-        DebMes("Opencode REST done: code={$http_code}, size=" . strlen($response) . "b, time={$elapsed}s", 'opencode');
         $decoded = json_decode($response, true);
         return array('code' => $http_code, 'data' => $decoded ? $decoded : $response);
     }
@@ -207,10 +189,6 @@ class opencode extends module {
         if ($timeout > 0) {
             $this->config['OC_TIMEOUT'] = $timeout;
         }
-        $model = !empty($this->config['OC_MODEL']) ? $this->config['OC_MODEL'] : 'opencode/big-pickle';
-        $reuse = !empty($this->config['OC_SESSION_REUSE']) ? 'on' : 'off';
-        DebMes("Opencode: processMessage model={$model} timeout={$this->config['OC_TIMEOUT']}s reuse={$reuse} msg=\"" . mb_substr($message, 0, 80) . "\"", 'opencode');
-
         $session_id = '';
 
         if (!empty($this->config['OC_SESSION_REUSE'])) {
@@ -221,20 +199,20 @@ class opencode extends module {
             $body = $this->buildMessageBody($message);
             $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
             if ($result && $result['code'] === 200) {
-                DebMes("Opencode: reuse OK session={$session_id}", 'opencode');
+                DebMes("Opencode: reused session={$session_id}", 'opencode');
                 return $this->parseMessageResponse($result);
             }
             if (!$result) {
-                DebMes("Opencode: reuse failed (timeout), creating new session", 'opencode');
+                DebMes("Opencode: session reuse failed (timeout or error), creating new session", 'opencode');
             } else {
-                DebMes("Opencode: reuse failed (code={$result['code']}), creating new session", 'opencode');
+                DebMes("Opencode: session expired or invalid (code={$result['code']}), creating new one", 'opencode');
             }
             $session_id = '';
         }
 
         $result = $this->restRequest('POST', '/session', $this->buildSessionBody());
         if (!$result || $result['code'] !== 200) {
-            DebMes("Opencode: create session failed (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
+            DebMes("Opencode: failed to create session (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
             return '';
         }
         $session_id = isset($result['data']['id']) ? $result['data']['id'] : '';
@@ -250,7 +228,7 @@ class opencode extends module {
         $body = $this->buildMessageBody($message);
         $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
         if (!$result || $result['code'] !== 200) {
-            DebMes("Opencode: send to new session failed (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
+            DebMes("Opencode: failed to send message to new session", 'opencode');
             unset($this->config['OC_SESSION_ID']);
             $this->saveConfig();
             return '';
