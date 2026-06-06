@@ -197,19 +197,12 @@ class opencode extends module {
 
         if ($session_id) {
             $body = $this->buildMessageBody($message);
-            $old_timeout = $this->config['OC_TIMEOUT'];
-            $this->config['OC_TIMEOUT'] = min(5, $old_timeout);
             $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
-            $this->config['OC_TIMEOUT'] = $old_timeout;
             if ($result && $result['code'] === 200) {
                 DebMes("Opencode: reused session={$session_id}", 'opencode');
                 return $this->parseMessageResponse($result);
             }
-            if (!$result) {
-                DebMes("Opencode: session reuse failed (timeout or error), creating new session", 'opencode');
-            } else {
-                DebMes("Opencode: session expired or invalid (code={$result['code']}), creating new one", 'opencode');
-            }
+            DebMes("Opencode: session expired or invalid, creating new one", 'opencode');
             $session_id = '';
         }
 
