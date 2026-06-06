@@ -383,6 +383,8 @@ class opencode extends module {
             }
             $this->config['OC_MAX_HISTORY'] = (int)gr('oc_max_history');
             $this->config['OC_TIMEOUT'] = (int)gr('oc_timeout');
+            $bg_timeout = (int)gr('oc_bg_timeout');
+            $this->config['OC_BG_TIMEOUT'] = max(5, min(120, $bg_timeout > 0 ? $bg_timeout : 30));
             $new_port = (int)gr('oc_port');
             if ($new_port < 1 || $new_port > 65535) $new_port = 4096;
             $old_port = isset($this->config['OC_PORT']) ? (int)$this->config['OC_PORT'] : 4096;
