@@ -189,11 +189,7 @@ class opencode extends module {
         if ($timeout > 0) {
             $this->config['OC_TIMEOUT'] = $timeout;
         }
-        $session_id = '';
-
-        if (!empty($this->config['OC_SESSION_REUSE'])) {
-            $session_id = isset($this->config['OC_SESSION_ID']) ? $this->config['OC_SESSION_ID'] : '';
-        }
+        $session_id = isset($this->config['OC_SESSION_ID']) ? $this->config['OC_SESSION_ID'] : '';
 
         if ($session_id) {
             $body = $this->buildMessageBody($message);
@@ -225,8 +221,6 @@ class opencode extends module {
         $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
         if (!$result || $result['code'] !== 200) {
             DebMes("Opencode: failed to send message to new session", 'opencode');
-            unset($this->config['OC_SESSION_ID']);
-            $this->saveConfig();
             return '';
         }
 
