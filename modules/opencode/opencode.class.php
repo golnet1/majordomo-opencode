@@ -368,61 +368,69 @@ class opencode extends module {
         DebMes("Opencode admin: vm=" . ($this->view_mode ?? 'NULL') . " mcp_inst=" . ($mcp_installed ? '1' : '0') . " cfg=" . (is_array($this->config) ? 'array[' . count($this->config) . ']' : 'NOT_ARRAY'), 'opencode');
 
         if ($this->view_mode == 'update_settings') {
+            $this->getConfig();
             session_write_close();
             DebMes("Opencode: SAVING SETTINGS", 'opencode');
-            $model_custom = gr('oc_model_custom');
-            $model_select = gr('oc_model');
-            $old_model = isset($this->config['OC_MODEL']) ? $this->config['OC_MODEL'] : '';
-            $this->config['OC_MODEL'] = $model_custom ? $model_custom : $model_select;
-            $this->config['OC_AGENT'] = gr('oc_agent');
-            $this->config['OC_SYSTEM_PROMPT'] = gr('oc_system_prompt');
-            $mcp_raw = gr('oc_mcp_servers');
-            if ($mcp_raw !== '') {
-                $mcp_decoded = json_decode($mcp_raw, true);
-                if ($mcp_decoded === null || !array_is_list($mcp_decoded)) {
-                    $out['MCP_JSON_ERROR'] = '1';
+            $saved_tab = gr('tab');
+
+            if ($saved_tab === 'settings') {
+                $model_custom = gr('oc_model_custom');
+                $model_select = gr('oc_model');
+                $old_model = isset($this->config['OC_MODEL']) ? $this->config['OC_MODEL'] : '';
+                $this->config['OC_MODEL'] = $model_custom ? $model_custom : $model_select;
+                $this->config['OC_AGENT'] = gr('oc_agent');
+                $this->config['OC_SYSTEM_PROMPT'] = gr('oc_system_prompt');
+                $mcp_raw = gr('oc_mcp_servers');
+                if ($mcp_raw !== '') {
+                    $mcp_decoded = json_decode($mcp_raw, true);
+                    if ($mcp_decoded === null || !array_is_list($mcp_decoded)) {
+                        $out['MCP_JSON_ERROR'] = '1';
+                    } else {
+                        $this->config['OC_MCP_SERVERS'] = $mcp_raw;
+                    }
                 } else {
-                    $this->config['OC_MCP_SERVERS'] = $mcp_raw;
+                    $this->config['OC_MCP_SERVERS'] = '';
                 }
-            } else {
-                $this->config['OC_MCP_SERVERS'] = '';
-            }
-            $this->config['OC_PROVIDER_API_KEY'] = gr('oc_provider_api_key');
-            $this->config['OC_PROVIDER_ENDPOINT'] = gr('oc_provider_endpoint');
-            $old_provider_model = isset($this->config['OC_PROVIDER_MODEL']) ? $this->config['OC_PROVIDER_MODEL'] : '';
-            $this->config['OC_PROVIDER_MODEL'] = gr('oc_provider_model');
-            if ($old_model != $this->config['OC_MODEL'] || $old_provider_model != $this->config['OC_PROVIDER_MODEL']) {
-                unset($this->config['OC_SESSION_ID']);
-            }
-            $this->config['OC_MAX_HISTORY'] = (int)gr('oc_max_history');
-            $this->config['OC_TIMEOUT'] = (int)gr('oc_timeout');
-            $bg_timeout = (int)gr('oc_bg_timeout');
-            $this->config['OC_BG_TIMEOUT'] = max(5, min(120, $bg_timeout > 0 ? $bg_timeout : 30));
-            $new_port = (int)gr('oc_port');
-            if ($new_port < 1 || $new_port > 65535) $new_port = 4096;
-            $old_port = isset($this->config['OC_PORT']) ? (int)$this->config['OC_PORT'] : 4096;
-            if ($new_port !== $old_port && !$this->isPortAvailable($new_port)) {
-                $out['PORT_BUSY'] = "1";
-                $new_port = $old_port;
-            }
-            $this->config['OC_PORT'] = $new_port;
-            $this->config['OC_PURE_MODE'] = gr('oc_pure_mode') ? 1 : 0;
-            if ($mcp_installed) {
-                $this->config['OC_MAJORDOMO_MCP'] = gr('oc_majordomo_mcp') ? 1 : 0;
-            }
-            $this->config['OC_AUTH_ENABLED'] = gr('oc_auth_enabled') ? 1 : 0;
-            $this->config['OC_AUTH_LOGIN'] = gr('oc_auth_login');
-            $this->config['OC_AUTH_PASSWORD'] = gr('oc_auth_password');
-            $this->config['OC_SESSION_REUSE'] = gr('oc_session_reuse') ? 1 : 0;
-            $old_full_access = isset($this->config['OC_FULL_ACCESS']) ? $this->config['OC_FULL_ACCESS'] : 1;
-            $this->config['OC_FULL_ACCESS'] = gr('oc_full_access') ? 1 : 0;
-            if ($old_full_access != $this->config['OC_FULL_ACCESS']) {
-                unset($this->config['OC_SESSION_ID']);
+                $this->config['OC_PROVIDER_API_KEY'] = gr('oc_provider_api_key');
+                $this->config['OC_PROVIDER_ENDPOINT'] = gr('oc_provider_endpoint');
+                $old_provider_model = isset($this->config['OC_PROVIDER_MODEL']) ? $this->config['OC_PROVIDER_MODEL'] : '';
+                $this->config['OC_PROVIDER_MODEL'] = gr('oc_provider_model');
+                if ($old_model != $this->config['OC_MODEL'] || $old_provider_model != $this->config['OC_PROVIDER_MODEL']) {
+                    unset($this->config['OC_SESSION_ID']);
+                }
+                $this->config['OC_MAX_HISTORY'] = (int)gr('oc_max_history');
+                $this->config['OC_TIMEOUT'] = (int)gr('oc_timeout');
+                $bg_timeout = (int)gr('oc_bg_timeout');
+                $this->config['OC_BG_TIMEOUT'] = max(5, min(120, $bg_timeout > 0 ? $bg_timeout : 30));
+                $this->config['OC_PURE_MODE'] = gr('oc_pure_mode') ? 1 : 0;
+                if ($mcp_installed) {
+                    $this->config['OC_MAJORDOMO_MCP'] = gr('oc_majordomo_mcp') ? 1 : 0;
+                }
+                $this->config['OC_SESSION_REUSE'] = gr('oc_session_reuse') ? 1 : 0;
+
+                $prompt = trim($this->config['OC_SYSTEM_PROMPT']);
+                if (!$prompt && !empty($this->config['OC_MAJORDOMO_MCP'])) {
+                    $this->config['OC_SYSTEM_PROMPT'] = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами: включение/выключение света, управление термостатами, открытие/закрытие штор и т.д. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
+                }
             }
 
-            $prompt = trim($this->config['OC_SYSTEM_PROMPT']);
-            if (!$prompt && !empty($this->config['OC_MAJORDOMO_MCP'])) {
-                $this->config['OC_SYSTEM_PROMPT'] = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами: включение/выключение света, управление термостатами, открытие/закрытие штор и т.д. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
+            if ($saved_tab === 'server') {
+                $new_port = (int)gr('oc_port');
+                if ($new_port < 1 || $new_port > 65535) $new_port = 4096;
+                $old_port = isset($this->config['OC_PORT']) ? (int)$this->config['OC_PORT'] : 4096;
+                if ($new_port !== $old_port && !$this->isPortAvailable($new_port)) {
+                    $out['PORT_BUSY'] = "1";
+                    $new_port = $old_port;
+                }
+                $this->config['OC_PORT'] = $new_port;
+                $this->config['OC_AUTH_ENABLED'] = gr('oc_auth_enabled') ? 1 : 0;
+                $this->config['OC_AUTH_LOGIN'] = gr('oc_auth_login');
+                $this->config['OC_AUTH_PASSWORD'] = gr('oc_auth_password');
+                $old_full_access = isset($this->config['OC_FULL_ACCESS']) ? $this->config['OC_FULL_ACCESS'] : 1;
+                $this->config['OC_FULL_ACCESS'] = gr('oc_full_access') ? 1 : 0;
+                if ($old_full_access != $this->config['OC_FULL_ACCESS']) {
+                    unset($this->config['OC_SESSION_ID']);
+                }
             }
 
             $this->saveConfig();
