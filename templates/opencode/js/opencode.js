@@ -10,10 +10,7 @@ function ocPollMessage(msgId) {
         if (xhr.status == 200) {
             try {
                 var res = JSON.parse(xhr.responseText);
-                if (res.success && res.processing && res.debug) {
-                    ocUpdateTypingDebug(res.debug);
-                    setTimeout(function() { ocPollMessage(msgId); }, 2000);
-                } else if (res.success && !res.processing) {
+                if (res.success && !res.processing) {
                     ocHideTyping();
                     ocAddMessage('assistant', res.response);
                 } else if (res.success && res.processing) {
@@ -146,19 +143,6 @@ function ocShowTyping() {
 function ocHideTyping() {
     var typing = document.getElementById('ocTypingIndicator');
     if (typing) typing.remove();
-}
-
-function ocUpdateTypingDebug(text) {
-    var typing = document.getElementById('ocTypingIndicator');
-    if (!typing) {
-        ocShowTyping();
-        typing = document.getElementById('ocTypingIndicator');
-    }
-    if (!typing) return;
-    var content = typing.querySelector('.oc-message-content');
-    if (content) {
-        content.innerHTML = '<div class="oc-message-text oc-debug-text" style="color:#888;font-size:0.9em;">' + text + '</div>';
-    }
 }
 
 function ocScrollToBottom() {

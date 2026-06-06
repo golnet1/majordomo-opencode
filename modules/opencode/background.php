@@ -13,16 +13,7 @@ $m = new opencode();
 $m->action = 'admin';
 $bg_timeout = isset($m->config['OC_BG_TIMEOUT']) ? (int)$m->config['OC_BG_TIMEOUT'] : 30;
 set_time_limit($bg_timeout + 30);
-$oc_debug = !empty($m->config['OC_DEBUG']);
-if ($oc_debug) {
-    $msg = '…🔄 Подключение к opencode...';
-    SQLExec("UPDATE opencode_messages SET MESSAGE='" . DBSafe($msg) . "' WHERE ID='$placeholder_id'");
-}
 $response = $m->processWithOpencode($message, $bg_timeout);
-if ($oc_debug && !$response) {
-    $msg = '…⚠️ OpenCode не ответил. Проверьте логи.';
-    SQLExec("UPDATE opencode_messages SET MESSAGE='" . DBSafe($msg) . "' WHERE ID='$placeholder_id'");
-}
 $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$placeholder_id'");
 if (!$rec['ID']) exit;
 if ($response) {

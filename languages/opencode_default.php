@@ -105,8 +105,6 @@ $dictionary = array(
     'OPENCODE_LOAD_ERROR' => 'Load error',
     'OPENCODE_SUDO_OK' => 'Sudo (OK)',
     'OPENCODE_SUDO_NO' => 'Sudo (NO SUDO)',
-    'OPENCODE_DEBUG' => 'Debug',
-    'OPENCODE_DEBUG_HELP' => 'Show processing status in chat (connection, timeouts, errors)',
 );
 
 foreach ($dictionary as $k=>$v)
