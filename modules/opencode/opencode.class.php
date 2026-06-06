@@ -458,6 +458,7 @@ class opencode extends module {
         $out['OC_PROVIDER_MODEL'] = $this->config['OC_PROVIDER_MODEL'];
         $out['OC_MAX_HISTORY'] = $this->config['OC_MAX_HISTORY'] ? $this->config['OC_MAX_HISTORY'] : 50;
         $out['OC_TIMEOUT'] = $this->config['OC_TIMEOUT'] ? $this->config['OC_TIMEOUT'] : 120;
+        $out['OC_BG_TIMEOUT'] = $this->config['OC_BG_TIMEOUT'] ? $this->config['OC_BG_TIMEOUT'] : 30;
         $out['OC_PORT'] = $this->config['OC_PORT'] ? $this->config['OC_PORT'] : 4096;
 
         $agent = $this->config['OC_AGENT'];
