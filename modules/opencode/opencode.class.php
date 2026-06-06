@@ -423,7 +423,7 @@ class opencode extends module {
             $this->config['OC_MAX_HISTORY'] = (int)gr('oc_max_history');
             $this->config['OC_TIMEOUT'] = (int)gr('oc_timeout');
             $bg_timeout = (int)gr('oc_bg_timeout');
-            $this->config['OC_BG_TIMEOUT'] = max(5, min(120, $bg_timeout > 0 ? $bg_timeout : 30));
+            $this->config['OC_BG_TIMEOUT'] = max(5, min(300, $bg_timeout > 0 ? $bg_timeout : 90));
             $new_port = (int)gr('oc_port');
             if ($new_port < 1 || $new_port > 65535) $new_port = 4096;
             $old_port = isset($this->config['OC_PORT']) ? (int)$this->config['OC_PORT'] : 4096;
@@ -498,7 +498,7 @@ class opencode extends module {
         $out['OC_PROVIDER_MODEL'] = $this->config['OC_PROVIDER_MODEL'];
         $out['OC_MAX_HISTORY'] = $this->config['OC_MAX_HISTORY'] ? $this->config['OC_MAX_HISTORY'] : 50;
         $out['OC_TIMEOUT'] = $this->config['OC_TIMEOUT'] ? $this->config['OC_TIMEOUT'] : 120;
-        $out['OC_BG_TIMEOUT'] = $this->config['OC_BG_TIMEOUT'] ? $this->config['OC_BG_TIMEOUT'] : 30;
+        $out['OC_BG_TIMEOUT'] = $this->config['OC_BG_TIMEOUT'] ? $this->config['OC_BG_TIMEOUT'] : 90;
         $out['OC_PORT'] = $this->config['OC_PORT'] ? $this->config['OC_PORT'] : 4096;
 
         $agent = $this->config['OC_AGENT'];
