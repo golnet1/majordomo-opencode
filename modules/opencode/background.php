@@ -11,7 +11,7 @@ $message = $argv[3];
 require_once "./modules/opencode/opencode.class.php";
 $m = new opencode();
 $m->action = 'admin';
-$bg_timeout = isset($m->config['OC_BG_TIMEOUT']) ? (int)$m->config['OC_BG_TIMEOUT'] : 90;
+$bg_timeout = isset($m->config['OC_BG_TIMEOUT']) ? (int)$m->config['OC_BG_TIMEOUT'] : 30;
 set_time_limit($bg_timeout + 30);
 $oc_debug = !empty($m->config['OC_DEBUG']);
 if ($oc_debug) {
