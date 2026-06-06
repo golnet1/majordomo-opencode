@@ -197,10 +197,7 @@ class opencode extends module {
 
         if ($session_id) {
             $body = $this->buildMessageBody($message);
-            $old_timeout = $this->config['OC_TIMEOUT'];
-            $this->config['OC_TIMEOUT'] = min(5, $old_timeout);
             $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
-            $this->config['OC_TIMEOUT'] = $old_timeout;
             if ($result && $result['code'] === 200) {
                 DebMes("Opencode: reused session={$session_id}", 'opencode');
                 return $this->parseMessageResponse($result);
@@ -421,6 +418,7 @@ class opencode extends module {
             $this->config['OC_AUTH_LOGIN'] = gr('oc_auth_login');
             $this->config['OC_AUTH_PASSWORD'] = gr('oc_auth_password');
             $this->config['OC_SESSION_REUSE'] = gr('oc_session_reuse') ? 1 : 0;
+            $this->config['OC_DEBUG'] = gr('oc_debug') ? 1 : 0;
             $old_full_access = isset($this->config['OC_FULL_ACCESS']) ? $this->config['OC_FULL_ACCESS'] : 1;
             $this->config['OC_FULL_ACCESS'] = gr('oc_full_access') ? 1 : 0;
             if ($old_full_access != $this->config['OC_FULL_ACCESS']) {
@@ -488,6 +486,7 @@ class opencode extends module {
         $out['OC_MAJORDOMO_MCP_CHECKED'] = $this->config['OC_MAJORDOMO_MCP'] ? 'checked' : '';
         $out['OC_MAJORDOMO_MCP_VISIBLE'] = $mcp_installed ? '' : 'style="display:none"';
         $out['OC_SESSION_REUSE_CHECKED'] = $this->config['OC_SESSION_REUSE'] ? 'checked' : '';
+        $out['OC_DEBUG_CHECKED'] = $this->config['OC_DEBUG'] ? 'checked' : '';
         $out['OC_FULL_ACCESS_CHECKED'] = isset($this->config['OC_FULL_ACCESS']) ? ($this->config['OC_FULL_ACCESS'] ? 'checked' : '') : 'checked';
         $out['OC_SESSION_ID'] = $this->config['OC_SESSION_ID'] ?: '—';
         $out['OC_AUTH_LOGIN'] = $this->config['OC_AUTH_LOGIN'] ?: '';

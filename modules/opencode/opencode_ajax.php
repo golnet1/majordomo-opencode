@@ -37,6 +37,9 @@ if ($op == 'send_message') {
         if ($rec['ID']) {
             if ($rec['MESSAGE'] === '…') {
                 echo json_encode(array('success' => true, 'processing' => true));
+            } elseif (mb_substr($rec['MESSAGE'], 0, 1) === '…') {
+                $debug = trim(mb_substr($rec['MESSAGE'], 1));
+                echo json_encode(array('success' => true, 'processing' => true, 'debug' => $debug));
             } else {
                 echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
             }
