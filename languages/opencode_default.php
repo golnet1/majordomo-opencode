@@ -31,6 +31,7 @@ $dictionary = array(
     'OPENCODE_MAX_HISTORY' => 'Max History',
     'OPENCODE_TIMEOUT' => 'API Timeout (seconds)',
     'OPENCODE_BG_TIMEOUT' => 'Async Request Timeout (seconds)',
+    'OPENCODE_BG_TIMEOUT_HELP' => 'Max time to wait for AI response on async requests (5–120s). Default 30.',
     'OPENCODE_SAVE' => 'Save',
     'OPENCODE_DIAGNOSTICS' => 'System Diagnostics',
     'OPENCODE_BINARY' => 'OpenCode binary',

@@ -31,6 +31,7 @@ $dictionary = array(
     'OPENCODE_MAX_HISTORY' => 'Макс. истории',
     'OPENCODE_TIMEOUT' => 'Таймаут API (сек)',
     'OPENCODE_BG_TIMEOUT' => 'Таймаут асинхр. запроса (сек)',
+    'OPENCODE_BG_TIMEOUT_HELP' => 'Максимальное время ожидания ответа от AI при асинхронной отправке (5–120 сек). По умолчанию 30.',
     'OPENCODE_SAVE' => 'Сохранить',
     'OPENCODE_DIAGNOSTICS' => 'Диагностика системы',
     'OPENCODE_BINARY' => 'Бинарник OpenCode',
