@@ -102,6 +102,7 @@ function ocFormatMessage(text) {
         .replace(/"/g, '&quot;');
     s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    s = s.replace(/\n/g, '<br>');
     return s;
 }
 
