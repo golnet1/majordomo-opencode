@@ -334,8 +334,10 @@ class opencode extends module {
             exit;
         }
 
-        $health = null;
         $is_post = ($_SERVER['REQUEST_METHOD'] === 'POST');
+        if ($is_post) session_write_close();
+
+        $health = null;
         if ($is_post) {
             $deps = $this->checkDependencies($health, true);
         } else {
@@ -369,7 +371,6 @@ class opencode extends module {
 
         if ($this->view_mode == 'update_settings') {
             $this->getConfig();
-            session_write_close();
             DebMes("Opencode: SAVING SETTINGS", 'opencode');
             $saved_tab = gr('tab');
 
