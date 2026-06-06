@@ -186,12 +186,14 @@ class opencode extends module {
                 . "- Работай ТОЛЬКО в директории /var/www/html/cms/files/\n"
                 . "- НЕ изменяй и НЕ удаляй файлы за пределами этой директории\n"
                 . "- НЕ выполняй команды, которые могут завершить работу системы: reboot, shutdown, poweroff, halt, init, systemctl poweroff, systemctl reboot, shutdown\n"
-                . "- НЕ выполняй команды, завершающие работу php, apache, mysql, nginx, memcached\n"
                 . "- НЕ используй команды kill, killall, pkill, skill\n"
                 . "- НЕ изменяй конфигурационные файлы системы (/etc/, /var/www/html/config.php и т.д.)\n"
-                . "- НЕ устанавливай и не удаляй пакеты (apt, dpkg, pip, npm, gem, cpan)\n"
                 . "- Любые файловые операции разрешены ТОЛЬКО внутри /var/www/html/cms/files/\n"
-                . "- Запрещено изменять, удалять или перезаписывать файлы ядра Majordomo и его модули\n";
+                . "- Запрещено изменять, удалять или перезаписывать файлы ядра Majordomo и его модули\n"
+                . "\n"
+                . "- Для поиска в интернете используй python3 с urllib.request (запросы HTTP, парсинг HTML/JSON).\n"
+                . "- websearch НЕДОСТУПЕН — не используй его.\n"
+                . "- Можно запускать python3 без установки пакетов (pip запрещён, но urllib.request встроен).\n";
             $prompt .= $restrictions;
         }
         if ($prompt) {
