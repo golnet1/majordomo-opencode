@@ -24,6 +24,7 @@ $dictionary = array(
     'OPENCODE_MCP_HELP' => 'JSON массив: [{"name":"server","enabled":true,"type":"stdio","command":"python3","args":"-m my_mcp"}]',
     'OPENCODE_MCP_MAJORDOMO' => 'Включить Majordomo MCP',
     'OPENCODE_MCP_MAJORDOMO_HELP' => 'Позволить opencode управлять устройствами Majordomo через модуль MCP',
+    'OPENCODE_MCP_JSON_ERROR' => 'Ошибка в JSON: введите массив в формате [{...}]',
     'OPENCODE_SYSTEM_PROMPT' => 'Системный промпт',
     'OPENCODE_SYSTEM_PROMPT_HELP' => 'Инструкции для AI. Пример: "Вы умный дом. Используйте [EXEC:включи свет] для выполнения команд."',
     'OPENCODE_PERFORMANCE' => 'Производительность',

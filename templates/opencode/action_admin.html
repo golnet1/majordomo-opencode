@@ -31,12 +31,15 @@
     <br>
 
     <div [#OK_VISIBLE#] class="alert alert-success"><#LANG_OPENCODE_SAVED#></div>
+    <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
     <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
     <div [#SESSION_CLEARED_VISIBLE#] class="alert alert-info"><#LANG_OPENCODE_SESSION_CLEARED#></div>
 
     [#if TAB_SETTINGS="1" || TAB_SERVER="1"#]
 
     <form action="?" method="post" class="form-horizontal">
+        <input type="hidden" name="action" value="opencode">
+        <input type="hidden" name="md" value="opencode">
         <input type="hidden" name="view_mode" value="update_settings">
         <input type="hidden" name="mode" value="update">
         <input type="hidden" name="tab" value="[#TAB#]">

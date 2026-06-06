@@ -24,6 +24,7 @@ $dictionary = array(
     'OPENCODE_MCP_HELP' => 'JSON array...',
     'OPENCODE_MCP_MAJORDOMO' => 'Enable Majordomo MCP',
     'OPENCODE_MCP_MAJORDOMO_HELP' => 'Let opencode control Majordomo devices via MCP',
+    'OPENCODE_MCP_JSON_ERROR' => 'JSON error: enter an array [{...}]',
     'OPENCODE_SYSTEM_PROMPT' => 'System Prompt',
     'OPENCODE_SYSTEM_PROMPT_HELP' => 'Instructions for the AI.',
     'OPENCODE_PERFORMANCE' => 'Performance',

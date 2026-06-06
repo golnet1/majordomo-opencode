@@ -11,11 +11,8 @@ $message = $argv[3];
 require_once "./modules/opencode/opencode.class.php";
 $m = new opencode();
 $m->action = 'admin';
-$m->getConfig();
-$timeout = (int)($m->config['OC_TIMEOUT'] ?: 120);
-if ($timeout > 300) $timeout = 300;
-set_time_limit($timeout + 10);
-$response = $m->processWithOpencode($message);
+set_time_limit(35);
+$response = $m->processWithOpencode($message, 30);
 $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$placeholder_id'");
 if (!$rec['ID']) exit;
 if ($response) {

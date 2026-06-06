@@ -363,7 +363,17 @@ class opencode extends module {
             $this->config['OC_MODEL'] = $model_custom ? $model_custom : $model_select;
             $this->config['OC_AGENT'] = gr('oc_agent');
             $this->config['OC_SYSTEM_PROMPT'] = gr('oc_system_prompt');
-            $this->config['OC_MCP_SERVERS'] = gr('oc_mcp_servers');
+            $mcp_raw = gr('oc_mcp_servers');
+            if ($mcp_raw !== '') {
+                $mcp_decoded = json_decode($mcp_raw, true);
+                if ($mcp_decoded === null || !array_is_list($mcp_decoded)) {
+                    $out['MCP_JSON_ERROR'] = '1';
+                } else {
+                    $this->config['OC_MCP_SERVERS'] = $mcp_raw;
+                }
+            } else {
+                $this->config['OC_MCP_SERVERS'] = '';
+            }
             $this->config['OC_PROVIDER_API_KEY'] = gr('oc_provider_api_key');
             $this->config['OC_PROVIDER_ENDPOINT'] = gr('oc_provider_endpoint');
             $old_provider_model = isset($this->config['OC_PROVIDER_MODEL']) ? $this->config['OC_PROVIDER_MODEL'] : '';
@@ -413,7 +423,7 @@ class opencode extends module {
                 }
             }
 
-            $out['OK_VISIBLE'] = '';
+            $out['OK_VISIBLE'] = empty($out['MCP_JSON_ERROR']) ? '' : 'style="display:none"';
         } else {
             $out['OK_VISIBLE'] = 'style="display:none"';
         }
