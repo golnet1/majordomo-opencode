@@ -251,10 +251,17 @@ class opencode extends module {
     function usual(&$out) {
     }
 
-    function checkDependencies(&$health_result = null) {
+    function checkDependencies(&$health_result = null, $short_timeout = false) {
         $checks = array();
         $checks['opencode_binary'] = file_exists($this->opencode_bin) ? 'ok' : 'missing';
-        $health_result = $this->restRequest('GET', '/global/health');
+        if ($short_timeout) {
+            $old_timeout = $this->config['OC_TIMEOUT'];
+            $this->config['OC_TIMEOUT'] = 5;
+            $health_result = $this->restRequest('GET', '/global/health');
+            $this->config['OC_TIMEOUT'] = $old_timeout;
+        } else {
+            $health_result = $this->restRequest('GET', '/global/health');
+        }
         $checks['api'] = ($health_result && $health_result['code'] === 200) ? 'ok' : 'missing';
         return $checks;
     }
@@ -328,11 +335,16 @@ class opencode extends module {
         }
 
         $health = null;
-        $deps = $this->checkDependencies($health);
+        $is_post = ($_SERVER['REQUEST_METHOD'] === 'POST');
+        if ($is_post) {
+            $deps = $this->checkDependencies($health, true);
+        } else {
+            $deps = $this->checkDependencies($health);
+        }
 
         if ($deps['opencode_binary'] !== 'ok') {
             $this->installOpencodeBinary();
-            $deps = $this->checkDependencies($health);
+            $deps = $this->checkDependencies($health, $is_post);
         }
 
         $api_ok = ($deps['api'] === 'ok');
@@ -356,6 +368,7 @@ class opencode extends module {
         DebMes("Opencode admin: vm=" . ($this->view_mode ?? 'NULL') . " mcp_inst=" . ($mcp_installed ? '1' : '0') . " cfg=" . (is_array($this->config) ? 'array[' . count($this->config) . ']' : 'NOT_ARRAY'), 'opencode');
 
         if ($this->view_mode == 'update_settings') {
+            session_write_close();
             DebMes("Opencode: SAVING SETTINGS", 'opencode');
             $model_custom = gr('oc_model_custom');
             $model_select = gr('oc_model');
