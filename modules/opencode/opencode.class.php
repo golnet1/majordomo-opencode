@@ -196,6 +196,7 @@ class opencode extends module {
             $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
             if ($result && $result['code'] === 200) {
                 DebMes("Opencode: reused session={$session_id}", 'opencode');
+                $this->saveTokensFromResponse($result);
                 return $this->parseMessageResponse($result);
             }
             DebMes("Opencode: session expired or invalid, creating new one", 'opencode');
@@ -207,6 +208,7 @@ class opencode extends module {
             DebMes("Opencode: failed to create session (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
             return '';
         }
+        $this->saveTokensFromResponse($result);
         $session_id = isset($result['data']['id']) ? $result['data']['id'] : '';
         if (!$session_id) {
             DebMes("Opencode: no session id in response", 'opencode');
@@ -223,6 +225,7 @@ class opencode extends module {
             DebMes("Opencode: failed to send message to new session", 'opencode');
             return '';
         }
+        $this->saveTokensFromResponse($result);
 
         return $this->parseMessageResponse($result);
     }
@@ -240,6 +243,16 @@ class opencode extends module {
         $response = trim(implode("\n", $text_parts));
         DebMes("Opencode API response: " . ($response ? substr($response, 0, 200) : 'EMPTY'), 'opencode');
         return $response;
+    }
+
+    function saveTokensFromResponse($result) {
+        if (isset($result['tokens'])) {
+            $this->config['OC_SESSION_TOKENS'] = $result['tokens'];
+            if (isset($result['cost'])) {
+                $this->config['OC_SESSION_COST'] = $result['cost'];
+            }
+            $this->saveConfig();
+        }
     }
 
     function usual(&$out) {
@@ -486,6 +499,22 @@ class opencode extends module {
         $out['OC_SESSION_REUSE_CHECKED'] = $this->config['OC_SESSION_REUSE'] ? 'checked' : '';
         $out['OC_FULL_ACCESS_CHECKED'] = isset($this->config['OC_FULL_ACCESS']) ? ($this->config['OC_FULL_ACCESS'] ? 'checked' : '') : 'checked';
         $out['OC_SESSION_ID'] = $this->config['OC_SESSION_ID'] ?: '—';
+        if (!empty($this->config['OC_SESSION_TOKENS'])) {
+            $t = $this->config['OC_SESSION_TOKENS'];
+            $parts = array();
+            $parts[] = 'Input: ' . (int)$t['input'];
+            $parts[] = 'Output: ' . (int)$t['output'];
+            if (!empty($t['reasoning'])) $parts[] = 'Reasoning: ' . (int)$t['reasoning'];
+            if (isset($t['cache']['read']) || isset($t['cache']['write'])) {
+                $parts[] = 'Cache: ' . (int)($t['cache']['read'] ?? 0) . 'R / ' . (int)($t['cache']['write'] ?? 0) . 'W';
+            }
+            $out['OC_SESSION_TOKENS_DISPLAY'] = implode(' | ', $parts);
+            if (isset($this->config['OC_SESSION_COST'])) {
+                $out['OC_SESSION_TOKENS_DISPLAY'] .= ' | Cost: ' . number_format((float)$this->config['OC_SESSION_COST'], 6);
+            }
+        } else {
+            $out['OC_SESSION_TOKENS_DISPLAY'] = '—';
+        }
         $out['OC_AUTH_LOGIN'] = $this->config['OC_AUTH_LOGIN'] ?: '';
         $out['OC_AUTH_PASSWORD'] = $this->config['OC_AUTH_PASSWORD'] ?: '';
 
