@@ -243,10 +243,19 @@ class opencode extends module {
     }
 
     function saveTokensFromResponse($result) {
-        if (!empty($result['data']['tokens'])) {
-            $this->config['OC_SESSION_TOKENS'] = $result['data']['tokens'];
-            if (isset($result['data']['cost'])) {
-                $this->config['OC_SESSION_COST'] = $result['data']['cost'];
+        $tokens = array();
+        $cost = null;
+        if (!empty($result['data']['info']['tokens'])) {
+            $tokens = $result['data']['info']['tokens'];
+            $cost = isset($result['data']['info']['cost']) ? $result['data']['info']['cost'] : null;
+        } elseif (!empty($result['data']['tokens'])) {
+            $tokens = $result['data']['tokens'];
+            $cost = isset($result['data']['cost']) ? $result['data']['cost'] : null;
+        }
+        if ($tokens) {
+            $this->config['OC_SESSION_TOKENS'] = $tokens;
+            if ($cost !== null) {
+                $this->config['OC_SESSION_COST'] = $cost;
             }
             $this->saveConfig();
         }
@@ -499,6 +508,7 @@ class opencode extends module {
         if (!empty($this->config['OC_SESSION_TOKENS'])) {
             $t = $this->config['OC_SESSION_TOKENS'];
             $parts = array();
+            if (isset($t['total'])) $parts[] = 'Total: ' . (int)$t['total'];
             $parts[] = 'Input: ' . (int)$t['input'];
             $parts[] = 'Output: ' . (int)$t['output'];
             if (!empty($t['reasoning'])) $parts[] = 'Reasoning: ' . (int)$t['reasoning'];
