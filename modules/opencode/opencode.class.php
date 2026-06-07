@@ -165,7 +165,7 @@ class opencode extends module {
         $prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? trim($this->config['OC_SYSTEM_PROMPT']) : '';
         if (empty($this->config['OC_FULL_ACCESS'])) {
             $restrictions = "\n\nВАЖНЫЕ ОГРАНИЧЕНИЯ БЕЗОПАСНОСТИ:\n"
-                . "- Файловые операции разрешены ТОЛЬКО в: /var/www/html/cms/files/, /tmp/, /var/www/tmp/opencode/\n"
+                . "- Рабочая директория: /var/www/html/. Файловые операции разрешены ТОЛЬКО внутри неё и в: /tmp/, /var/www/tmp/opencode/\n"
                 . "- НЕ изменяй, НЕ удаляй и НЕ создавай файлы за пределами этих директорий\n"
                 . "- НЕ выполняй команды, которые могут завершить работу системы: reboot, shutdown, poweroff, halt, init, systemctl poweroff, systemctl reboot, shutdown\n"
                 . "- НЕ выполняй команды, завершающие работу php, apache, mysql, nginx, memcached\n"
@@ -716,15 +716,27 @@ class opencode extends module {
             $config['permission'] = array(
                 'read' => array(
                     '*' => 'deny',
-                    '/var/www/html/cms/files/*' => 'allow',
-                    '/tmp/*' => 'allow',
-                    '/var/www/tmp/opencode/*' => 'allow'
+                    'cms/files/**' => 'allow',
+                    '/var/www/tmp/opencode/**' => 'allow',
+                    '/tmp/**' => 'allow'
                 ),
                 'edit' => array(
                     '*' => 'deny',
-                    '/var/www/html/cms/files/*' => 'allow',
-                    '/tmp/*' => 'allow',
-                    '/var/www/tmp/opencode/*' => 'allow'
+                    'cms/files/**' => 'allow',
+                    '/var/www/tmp/opencode/**' => 'allow',
+                    '/tmp/**' => 'allow'
+                ),
+                'glob' => array(
+                    '*' => 'deny',
+                    'cms/files/**' => 'allow',
+                    '/var/www/tmp/opencode/**' => 'allow',
+                    '/tmp/**' => 'allow'
+                ),
+                'grep' => array(
+                    '*' => 'deny',
+                    'cms/files/**' => 'allow',
+                    '/var/www/tmp/opencode/**' => 'allow',
+                    '/tmp/**' => 'allow'
                 ),
                 'bash' => array(
                     '*' => 'allow',
@@ -733,7 +745,7 @@ class opencode extends module {
                     '*halt*' => 'deny',
                     '*poweroff*' => 'deny',
                     '*systemctl*' => 'deny',
-                    '*service *' => 'deny',
+                    '*service*' => 'deny',
                     '*apt*' => 'deny',
                     '*apt-get*' => 'deny',
                     '*dpkg*' => 'deny',
@@ -751,13 +763,15 @@ class opencode extends module {
                     '*umount*' => 'deny',
                     '*chmod*' => 'deny',
                     '*chown*' => 'deny',
-                    'rm -rf /*' => 'deny',
-                    'rm -rf ~/*' => 'deny',
-                    'rm -rf /' => 'deny',
-                    '*dd *' => 'deny',
-                    '*sudo *' => 'deny'
+                    '*rm *' => 'deny',
+                    '*dd*' => 'deny',
+                    '*sudo*' => 'deny'
                 ),
-                'external_directory' => 'deny'
+                'external_directory' => array(
+                    '*' => 'deny',
+                    '/var/www/tmp/opencode/**' => 'allow',
+                    '/tmp/**' => 'allow'
+                )
             );
         }
 
@@ -829,6 +843,7 @@ class opencode extends module {
         $content = "[Service]\n";
         $content .= "Environment=\n";
         $content .= "Environment=HOME=/var/www\n";
+        $content .= "WorkingDirectory=/var/www/html\n";
         $content .= "ExecStart=\n";
         if (!empty($this->config['OC_AUTH_ENABLED'])) {
             $login = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
