@@ -1,34 +1,24 @@
-<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css">
-
-<div class="container-fluid">
-    <div class="opencode-container">
-        <div class="opencode-header">
-            <h4><#LANG_OPENCODE_TITLE#></h4>
-            <div class="opencode-header-actions">
-                [#if OC_SESSION_REUSE!=""#]
-                <button class="btn btn-default btn-xs" onclick="ocClearHistory()"><#LANG_OPENCODE_CLEAR#></button>
-                [#endif#]
-            </div>
-        </div>
-        <div class="opencode-messages" id="ocMessages">
-            <div class="oc-message oc-message-assistant">
-                <div class="oc-message-avatar"><i class="glyphicon glyphicon-cloud"></i></div>
-                <div class="oc-message-content">
-                    <div class="oc-message-text"><#LANG_OPENCODE_ACTIVE_CHAT#></div>
-                </div>
-            </div>
-        </div>
-        <div class="opencode-input">
-            <form onsubmit="return ocSendMessage()">
-                <div class="input-group">
-                    <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_PLACEHOLDER#>">
-                    <span class="input-group-btn">
-                        <button class="btn btn-primary" type="submit" id="ocSendBtn"><#LANG_OPENCODE_SEND#></button>
-                    </span>
-                </div>
-            </form>
-        </div>
+<div id="oc_chat_container">
+    <div id="ocMessages"></div>
+    <div id="ocInputArea">
+        <input type="text" id="ocInput" placeholder="<#LANG_OPENCODE_PLACEHOLDER#>" onkeydown="if(event.keyCode==13)ocSendMessage()">
+        <button id="ocSendBtn" onclick="ocSendMessage()" class="btn btn-primary"><#LANG_OPENCODE_SEND#></button>
+        <button onclick="ocClearHistory()" style="margin-left:5px" class="btn btn-danger"><#LANG_OPENCODE_CLEAR_HISTORY#></button>
     </div>
 </div>
 
-<script src="<#ROOTHTML#>templates/opencode/js/opencode.js"></script>
+<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=2">
+<script>
+var ocLang = {
+    send: '<#LANG_OPENCODE_SEND#>',
+    typing: '<#LANG_OPENCODE_TYPING#>',
+    clearConfirm: '<#LANG_OPENCODE_CLEAR_CONFIRM#>',
+    historyCleared: '<#LANG_OPENCODE_HISTORY_CLEARED#>',
+    howCanIHelp: '<#LANG_OPENCODE_HOW_CAN_I_HELP#>',
+    connectError: '<#LANG_OPENCODE_CONNECT_ERROR#>',
+    serverError: '<#LANG_OPENCODE_SERVER_ERROR#>',
+    unknownError: '<#LANG_OPENCODE_UNKNOWN_ERROR#>',
+    errorPrefix: '<#LANG_OPENCODE_ERROR_PREFIX#>'
+};
+</script>
+<script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=2"></script>

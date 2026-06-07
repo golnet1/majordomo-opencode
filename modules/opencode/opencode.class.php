@@ -262,6 +262,17 @@ class opencode extends module {
     }
 
     function usual(&$out) {
+        $this->getConfig();
+        $out['OC_SESSION_REUSE'] = $this->config['OC_SESSION_REUSE'];
+        $out['OC_LANG_SEND'] = defined('LANG_OPENCODE_SEND') ? LANG_OPENCODE_SEND : 'Send';
+        $out['OC_LANG_TYPING'] = defined('LANG_OPENCODE_TYPING') ? LANG_OPENCODE_TYPING : '...';
+        $out['OC_LANG_CLEAR_CONFIRM'] = defined('LANG_OPENCODE_CLEAR_CONFIRM') ? LANG_OPENCODE_CLEAR_CONFIRM : 'Clear chat history?';
+        $out['OC_LANG_HISTORY_CLEARED'] = defined('LANG_OPENCODE_HISTORY_CLEARED') ? LANG_OPENCODE_HISTORY_CLEARED : 'History cleared. How can I help you?';
+        $out['OC_LANG_HOW_CAN_I_HELP'] = defined('LANG_OPENCODE_HOW_CAN_I_HELP') ? LANG_OPENCODE_HOW_CAN_I_HELP : 'How can I help you?';
+        $out['OC_LANG_CONNECT_ERROR'] = defined('LANG_OPENCODE_CONNECT_ERROR') ? LANG_OPENCODE_CONNECT_ERROR : 'Connection error. Please try again.';
+        $out['OC_LANG_SERVER_ERROR'] = defined('LANG_OPENCODE_SERVER_ERROR') ? LANG_OPENCODE_SERVER_ERROR : 'Invalid response from server';
+        $out['OC_LANG_UNKNOWN_ERROR'] = defined('LANG_OPENCODE_UNKNOWN_ERROR') ? LANG_OPENCODE_UNKNOWN_ERROR : 'Unknown error';
+        $out['OC_LANG_ERROR_PREFIX'] = defined('LANG_OPENCODE_ERROR_PREFIX') ? LANG_OPENCODE_ERROR_PREFIX : 'Error: ';
     }
 
     function checkDependencies(&$health_result = null, $short_timeout = false) {
