@@ -13,7 +13,12 @@
             <span id="oc_deps_model_label" style="vertical-align:middle;">[#DEPS_MODEL_LABEL#]</span>
         </span>
     </h3>
-    <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;">
+    <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;align-items:center;">
+        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=restart_opencode" class="btn btn-warning btn-sm" title="<#LANG_OPENCODE_RESTART_SERVICE_HELP#>">
+           <span class="glyphicon glyphicon-refresh"></span> <#LANG_OPENCODE_RESTART_SERVICE#></a>
+        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=remove_opencode" class="btn btn-danger btn-sm" title="<#LANG_OPENCODE_REMOVE_OPENCODE_CONFIRM#>"
+           onclick="return confirm('Вы точно уверены?')">
+           <span class="glyphicon glyphicon-trash"></span> <#LANG_OPENCODE_REMOVE_OPENCODE#></a>
         [#if TAB_HELP!="1"#]
         <a href="?action=opencode&md=opencode&tab=help" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_HELP#>"><span class="glyphicon glyphicon-question-sign"></span></a>
         [#endif#]
@@ -34,6 +39,7 @@
     <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
     <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
     <div [#SESSION_CLEARED_VISIBLE#] class="alert alert-info"><#LANG_OPENCODE_SESSION_CLEARED#></div>
+    <div [#if OC_RESTARTED="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-info"><#LANG_OPENCODE_RESTARTED#></div>
 
     [#if TAB_SETTINGS="1" || TAB_SERVER="1"#]
 
@@ -297,7 +303,6 @@
 <br>
                             <strong>Токены сессии:</strong> [#OC_SESSION_TOKENS_DISPLAY#]
 
-                            <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=remove_opencode" class="btn btn-xs btn-danger" onclick="return confirm('<#LANG_OPENCODE_REMOVE_OPENCODE_CONFIRM#>')"><#LANG_OPENCODE_REMOVE_OPENCODE#></a>
                         </p>
                     </div>
                 </div>

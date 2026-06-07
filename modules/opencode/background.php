@@ -13,7 +13,7 @@ $m = new opencode();
 $m->action = 'admin';
 $bg_timeout = isset($m->config['OC_BG_TIMEOUT']) ? (int)$m->config['OC_BG_TIMEOUT'] : 30;
 set_time_limit($bg_timeout + 30);
-$response = $m->processWithOpencode($message, $bg_timeout);
+$response = $m->processWithOpencode($message);
 $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$placeholder_id'");
 if (!$rec['ID']) exit;
 if ($response) {

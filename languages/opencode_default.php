@@ -30,7 +30,7 @@ $dictionary = array(
     'OPENCODE_PERFORMANCE' => 'Performance',
     'OPENCODE_MAX_HISTORY' => 'Max History',
     'OPENCODE_TIMEOUT' => 'API Timeout (seconds)',
-    'OPENCODE_BG_TIMEOUT' => 'Async Request Timeout (seconds)',
+    'OPENCODE_BG_TIMEOUT' => 'Connection Error Timeout (seconds)',
     'OPENCODE_SAVE' => 'Save',
     'OPENCODE_DIAGNOSTICS' => 'System Diagnostics',
     'OPENCODE_BINARY' => 'OpenCode binary',
@@ -105,6 +105,9 @@ $dictionary = array(
     'OPENCODE_LOAD_ERROR' => 'Load error',
     'OPENCODE_SUDO_OK' => 'Sudo (OK)',
     'OPENCODE_SUDO_NO' => 'Sudo (NO SUDO)',
+    'OPENCODE_RESTART_SERVICE' => 'Restart service',
+    'OPENCODE_RESTART_SERVICE_HELP' => 'Restart opencode-web service',
+    'OPENCODE_RESTARTED' => 'opencode-web service restarted',
 );
 
 foreach ($dictionary as $k=>$v)

@@ -467,10 +467,23 @@ class opencode extends module {
 
         if ($this->view_mode == 'clear_session') {
             unset($this->config['OC_SESSION_ID']);
+            unset($this->config['OC_SESSION_TOKENS']);
+            unset($this->config['OC_SESSION_COST']);
             $this->saveConfig();
             $out['SESSION_CLEARED_VISIBLE'] = '';
         } else {
             $out['SESSION_CLEARED_VISIBLE'] = 'style="display:none"';
+        }
+
+        if ($this->view_mode == 'restart_opencode') {
+            $this->syncServiceRestart();
+            unset($this->config['OC_SESSION_ID']);
+            unset($this->config['OC_SESSION_TOKENS']);
+            unset($this->config['OC_SESSION_COST']);
+            $this->config['OC_RESTARTED'] = 1;
+            $this->saveConfig();
+        } else {
+            unset($this->config['OC_RESTARTED']);
         }
 
         if ($this->view_mode == 'remove_opencode') {
