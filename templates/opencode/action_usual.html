@@ -1,9 +1,11 @@
 <div id="oc_chat_container" style="margin:10px;min-height:300px;">
     <div id="ocMessages"></div>
     <div id="ocInputArea">
-        <input type="text" id="ocInput" placeholder="<#LANG_OPENCODE_PLACEHOLDER#>" onkeydown="if(event.keyCode==13)ocSendMessage()">
-        <button id="ocSendBtn" onclick="ocSendMessage()" class="btn btn-primary"><#LANG_OPENCODE_SEND#></button>
-        <button onclick="ocClearHistory()" style="margin-left:5px" class="btn btn-danger"><#LANG_OPENCODE_CLEAR_HISTORY#></button>
+        <form onsubmit="return ocSendMessage()" style="display:flex;gap:5px;width:50%;">
+            <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_MESSAGE_PLACEHOLDER#>">
+            <button id="ocSendBtn" class="btn btn-primary" type="submit"><#LANG_OPENCODE_SEND#></button>
+            <button type="button" onclick="ocClearHistory()" class="btn btn-danger"><#LANG_OPENCODE_CLEAR_HISTORY#></button>
+        </form>
     </div>
 </div>
 

@@ -165,7 +165,7 @@ class opencode extends module {
         $prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? trim($this->config['OC_SYSTEM_PROMPT']) : '';
         if (empty($this->config['OC_FULL_ACCESS'])) {
             $restrictions = "\n\nВАЖНЫЕ ОГРАНИЧЕНИЯ БЕЗОПАСНОСТИ:\n"
-                . "- Рабочая директория: /var/www/html/. Файловые операции разрешены ТОЛЬКО внутри неё и в: /tmp/, /var/www/tmp/opencode/\n"
+                . "- Файловые операции разрешены ТОЛЬКО в: /var/www/html/cms/files/, /tmp/, /var/www/tmp/opencode/\n"
                 . "- НЕ изменяй, НЕ удаляй и НЕ создавай файлы за пределами этих директорий\n"
                 . "- НЕ выполняй команды, которые могут завершить работу системы: reboot, shutdown, poweroff, halt, init, systemctl poweroff, systemctl reboot, shutdown\n"
                 . "- НЕ выполняй команды, завершающие работу php, apache, mysql, nginx, memcached\n"
@@ -434,7 +434,7 @@ class opencode extends module {
 
                 $prompt = trim($this->config['OC_SYSTEM_PROMPT']);
                 if (!$prompt && !empty($this->config['OC_MAJORDOMO_MCP'])) {
-                    $this->config['OC_SYSTEM_PROMPT'] = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами: включение/выключение света, управление термостатами, открытие/закрытие штор и т.д. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
+                    $this->config['OC_SYSTEM_PROMPT'] = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Для работы с файлами используй инструменты read/edit/write, а не bash-команды. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
                 }
             }
 
@@ -507,7 +507,7 @@ class opencode extends module {
 
         $system_prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? $this->config['OC_SYSTEM_PROMPT'] : '';
         if (!$system_prompt) {
-            $system_prompt = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами: включение/выключение света, управление термостатами, открытие/закрытие штор и т.д. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
+            $system_prompt = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Для работы с файлами используй инструменты read/edit/write, а не bash-команды. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
         }
         $out['OC_SYSTEM_PROMPT'] = $system_prompt;
         $out['OC_MCP_SERVERS'] = $this->config['OC_MCP_SERVERS'];
@@ -715,57 +715,38 @@ class opencode extends module {
         if (empty($this->config['OC_FULL_ACCESS'])) {
             $config['permission'] = array(
                 'read' => array(
-                    '*' => 'deny',
-                    'cms/files/**' => 'allow',
-                    '/var/www/tmp/opencode/**' => 'allow',
-                    '/tmp/**' => 'allow'
+                    '*' => 'allow'
                 ),
                 'edit' => array(
                     '*' => 'deny',
-                    'cms/files/**' => 'allow',
+                    '/var/www/html/cms/files/**' => 'allow',
                     '/var/www/tmp/opencode/**' => 'allow',
                     '/tmp/**' => 'allow'
                 ),
                 'glob' => array(
-                    '*' => 'deny',
-                    'cms/files/**' => 'allow',
-                    '/var/www/tmp/opencode/**' => 'allow',
-                    '/tmp/**' => 'allow'
+                    '*' => 'allow'
                 ),
                 'grep' => array(
-                    '*' => 'deny',
-                    'cms/files/**' => 'allow',
-                    '/var/www/tmp/opencode/**' => 'allow',
-                    '/tmp/**' => 'allow'
+                    '*' => 'allow'
                 ),
                 'bash' => array(
-                    '*' => 'allow',
-                    '*reboot*' => 'deny',
-                    '*shutdown*' => 'deny',
-                    '*halt*' => 'deny',
-                    '*poweroff*' => 'deny',
-                    '*systemctl*' => 'deny',
-                    '*service*' => 'deny',
-                    '*apt*' => 'deny',
-                    '*apt-get*' => 'deny',
-                    '*dpkg*' => 'deny',
-                    '*pip install*' => 'deny',
-                    '*npm install*' => 'deny',
-                    '*npm uninstall*' => 'deny',
-                    '*passwd*' => 'deny',
-                    '*useradd*' => 'deny',
-                    '*userdel*' => 'deny',
-                    '*usermod*' => 'deny',
-                    '*mkfs*' => 'deny',
-                    '*fdisk*' => 'deny',
-                    '*parted*' => 'deny',
-                    '*mount*' => 'deny',
-                    '*umount*' => 'deny',
-                    '*chmod*' => 'deny',
-                    '*chown*' => 'deny',
-                    '*rm *' => 'deny',
-                    '*dd*' => 'deny',
-                    '*sudo*' => 'deny'
+                    '*' => 'deny',
+                    'git *' => 'allow',
+                    'ls *' => 'allow',
+                    'which *' => 'allow',
+                    'id' => 'allow',
+                    'pwd' => 'allow',
+                    'whoami' => 'allow',
+                    'date' => 'allow',
+                    'uptime' => 'allow',
+                    'uname *' => 'allow',
+                    'ps *' => 'allow',
+                    'df *' => 'allow',
+                    'du *' => 'allow',
+                    'wc *' => 'allow',
+                    'ping *' => 'allow',
+                    'php *' => 'allow',
+                    'python3 *' => 'allow'
                 ),
                 'external_directory' => array(
                     '*' => 'deny',
