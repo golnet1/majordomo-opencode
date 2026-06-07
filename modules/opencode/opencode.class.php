@@ -26,7 +26,7 @@ class opencode extends module {
         return $this->config['OC_PORT'] ? (int)$this->config['OC_PORT'] : 4096;
     }
 
-    function restRequest($method, $path, $body = null) {
+    function restRequest($method, $path, $body = null, $timeout = 0) {
         $port = $this->getApiPort();
         $url = "http://127.0.0.1:{$port}{$path}";
         $user = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
@@ -37,7 +37,7 @@ class opencode extends module {
             "Content-Type: application/json",
             "Accept: application/json"
         );
-        $timeout = $this->config['OC_TIMEOUT'] ? $this->config['OC_TIMEOUT'] : 120;
+        if ($timeout <= 0) $timeout = $this->config['OC_TIMEOUT'] ?: 120;
         if ($timeout > 300) $timeout = 300;
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -186,14 +186,11 @@ class opencode extends module {
 
     function processWithOpencode($message, $timeout = 0) {
         $this->getConfig();
-        if ($timeout > 0) {
-            $this->config['OC_TIMEOUT'] = $timeout;
-        }
         $session_id = isset($this->config['OC_SESSION_ID']) ? $this->config['OC_SESSION_ID'] : '';
 
         if ($session_id) {
             $body = $this->buildMessageBody($message);
-            $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
+            $result = $this->restRequest('POST', "/session/{$session_id}/message", $body, $timeout);
             if ($result && $result['code'] === 200) {
                 DebMes("Opencode: reused session={$session_id}", 'opencode');
                 $this->saveTokensFromResponse($result);
@@ -203,7 +200,7 @@ class opencode extends module {
             $session_id = '';
         }
 
-        $result = $this->restRequest('POST', '/session', $this->buildSessionBody());
+        $result = $this->restRequest('POST', '/session', $this->buildSessionBody(), $timeout);
         if (!$result || $result['code'] !== 200) {
             DebMes("Opencode: failed to create session (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
             return '';
@@ -220,7 +217,7 @@ class opencode extends module {
         $this->saveConfig();
 
         $body = $this->buildMessageBody($message);
-        $result = $this->restRequest('POST', "/session/{$session_id}/message", $body);
+        $result = $this->restRequest('POST', "/session/{$session_id}/message", $body, $timeout);
         if (!$result || $result['code'] !== 200) {
             DebMes("Opencode: failed to send message to new session", 'opencode');
             return '';
@@ -246,10 +243,10 @@ class opencode extends module {
     }
 
     function saveTokensFromResponse($result) {
-        if (isset($result['tokens'])) {
-            $this->config['OC_SESSION_TOKENS'] = $result['tokens'];
-            if (isset($result['cost'])) {
-                $this->config['OC_SESSION_COST'] = $result['cost'];
+        if (!empty($result['data']['tokens'])) {
+            $this->config['OC_SESSION_TOKENS'] = $result['data']['tokens'];
+            if (isset($result['data']['cost'])) {
+                $this->config['OC_SESSION_COST'] = $result['data']['cost'];
             }
             $this->saveConfig();
         }
