@@ -176,7 +176,7 @@
                     <dd>AI работает без ограничений — может читать и редактировать любые файлы, выполнять любые bash-команды, управлять службами. Эквивалентно правам root. Используйте если полностью доверяете AI.</dd>
 
                     <dt>Полный доступ выключен (галочка снята)</dt>
-                    <dd>AI работает в ограниченном режиме — может читать и редактировать файлы только внутри <code>/var/www/html/cms/files/</code>. Запрещены опасные bash-команды: reboot, shutdown, systemctl, apt, dpkg, pip/npm install, passwd, useradd, mkfs, fdisk, chmod, chown, rm -rf, sudo и другие. Ограничения применяются на уровне конфигурации opencode (permission rules), а не только через системный промпт.</dd>
+                    <dd>AI работает в ограниченном режиме — может читать и редактировать файлы только внутри <code>/var/www/html/cms/files/</code>, <code>/tmp/</code>, <code>/var/www/tmp/opencode/</code>. Запрещены опасные bash-команды: reboot, shutdown, systemctl, apt, dpkg, pip/npm install, passwd, useradd, mkfs, fdisk, chmod, chown, rm -rf, sudo и другие. Ограничения применяются на уровне конфигурации opencode (permission rules), а не только через системный промпт.</dd>
                 </dl>
             </div>
         </div>

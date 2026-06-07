@@ -165,14 +165,13 @@ class opencode extends module {
         $prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? trim($this->config['OC_SYSTEM_PROMPT']) : '';
         if (empty($this->config['OC_FULL_ACCESS'])) {
             $restrictions = "\n\nВАЖНЫЕ ОГРАНИЧЕНИЯ БЕЗОПАСНОСТИ:\n"
-                . "- Работай ТОЛЬКО в директории /var/www/html/cms/files/\n"
-                . "- НЕ изменяй и НЕ удаляй файлы за пределами этой директории\n"
+                . "- Файловые операции разрешены ТОЛЬКО в: /var/www/html/cms/files/, /tmp/, /var/www/tmp/opencode/\n"
+                . "- НЕ изменяй, НЕ удаляй и НЕ создавай файлы за пределами этих директорий\n"
                 . "- НЕ выполняй команды, которые могут завершить работу системы: reboot, shutdown, poweroff, halt, init, systemctl poweroff, systemctl reboot, shutdown\n"
                 . "- НЕ выполняй команды, завершающие работу php, apache, mysql, nginx, memcached\n"
                 . "- НЕ используй команды kill, killall, pkill, skill\n"
                 . "- НЕ изменяй конфигурационные файлы системы (/etc/, /var/www/html/config.php и т.д.)\n"
                 . "- НЕ устанавливай и не удаляй пакеты (apt, dpkg, pip, npm, gem, cpan)\n"
-                . "- Любые файловые операции разрешены ТОЛЬКО внутри /var/www/html/cms/files/\n"
                 . "- Запрещено изменять, удалять или перезаписывать файлы ядра Majordomo и его модули\n";
             $prompt .= $restrictions;
         }
@@ -717,11 +716,15 @@ class opencode extends module {
             $config['permission'] = array(
                 'read' => array(
                     '*' => 'deny',
-                    '/var/www/html/cms/files/*' => 'allow'
+                    '/var/www/html/cms/files/*' => 'allow',
+                    '/tmp/*' => 'allow',
+                    '/var/www/tmp/opencode/*' => 'allow'
                 ),
                 'edit' => array(
                     '*' => 'deny',
-                    '/var/www/html/cms/files/*' => 'allow'
+                    '/var/www/html/cms/files/*' => 'allow',
+                    '/tmp/*' => 'allow',
+                    '/var/www/tmp/opencode/*' => 'allow'
                 ),
                 'bash' => array(
                     '*' => 'allow',
