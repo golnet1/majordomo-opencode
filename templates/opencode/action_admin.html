@@ -39,11 +39,8 @@
     <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
     <div id="oc_mcp_pkg_warning" [#if OC_MCP_PYTHON_OK!="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-warning">
         Python-пакет <strong>mcp</strong> не установлен. MCP серверы не будут работать.
-        <a href="?action=opencode&md=opencode&tab=settings&view_mode=install_mcp_package" class="btn btn-xs btn-success" style="margin-left:10px;">
+        <button class="btn btn-xs btn-success" onclick="ocInstallMcpPkg()" style="margin-left:10px;">
             <span class="glyphicon glyphicon-download-alt"></span> Установить
-        </a>
-        <button class="btn btn-xs btn-info" onclick="ocInstallMcpPkg()" style="margin-left:5px;">
-            <span class="glyphicon glyphicon-download-alt"></span> Установить (AJAX)
         </button>
     </div>
     <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
@@ -531,20 +528,20 @@ function ocInstallMcpPkg() {
                     document.getElementById('oc_mcp_pkg_warning').style.display = 'none';
                 } else {
                     alert('Ошибка установки пакета mcp');
-                    btn.textContent = 'Установить (AJAX)';
+                    btn.textContent = 'Установить';
                 }
             } catch(e) {
                 alert('Ошибка установки пакета mcp');
-                btn.textContent = 'Установить (AJAX)';
+                btn.textContent = 'Установить';
             }
         } else {
             alert('Ошибка установки пакета mcp');
-            btn.textContent = 'Установить (AJAX)';
+            btn.textContent = 'Установить';
         }
     };
     xhr.onerror = function() {
         btn.disabled = false;
-        btn.textContent = 'Установить (AJAX)';
+        btn.textContent = 'Установить';
         alert('Ошибка сети');
     };
     xhr.send();

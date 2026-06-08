@@ -506,12 +506,6 @@ class opencode extends module {
             exit;
         }
 
-        if ($this->view_mode == 'install_mcp_package') {
-            $this->installPythonDeps();
-            header('Location: ?action=opencode&md=opencode&tab=settings');
-            exit;
-        }
-
         $out['OC_MODEL'] = $this->config['OC_MODEL'] ? $this->config['OC_MODEL'] : 'opencode/big-pickle';
         $out['OC_MCP_PYTHON_OK'] = $mcp_python_ok ? '1' : '0';
         $out['OC_AGENT'] = $this->config['OC_AGENT'] ? $this->config['OC_AGENT'] : 'build';
