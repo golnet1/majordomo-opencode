@@ -1004,25 +1004,15 @@ class opencode extends module {
     }
 
     function findMcpVenvPython() {
-        $candidates = array(
-            realpath(DIR_MODULES) . '/mcp/.venv/bin/python3',
-            realpath(DIR_MODULES) . '/mcp/lib/.venv/bin/python3',
-        );
-        foreach ($candidates as $p) {
-            if (file_exists($p)) return $p;
-        }
-        return null;
+        $p = realpath(DIR_MODULES) . '/mcp/lib/.venv/bin/python3';
+        return file_exists($p) ? $p : null;
     }
 
     function findMcpVenvPip() {
         $py = $this->findMcpVenvPython();
         if (!$py) return null;
-        $dir = dirname($py);
-        $candidates = array($dir . '/pip3', $dir . '/pip');
-        foreach ($candidates as $p) {
-            if (file_exists($p)) return $p;
-        }
-        return null;
+        $pip = dirname($py) . '/pip3';
+        return file_exists($pip) ? $pip : null;
     }
 
     function getMcpPython() {
