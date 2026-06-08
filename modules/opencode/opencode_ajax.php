@@ -63,12 +63,15 @@ if ($op == 'send_message') {
     $health = null;
     $deps = $m->checkDependencies($health);
     $model_name = $m->config['OC_PROVIDER_ENDPOINT'] ? ($m->config['OC_PROVIDER_MODEL'] ?: $m->config['OC_MODEL']) : ($m->config['OC_MODEL'] ?: 'opencode/big-pickle');
+    $mcp_result = $m->restRequest('GET', '/mcp');
+    $mcp_status = ($mcp_result && $mcp_result['code'] === 200 && is_array($mcp_result['data'])) ? $mcp_result['data'] : array();
     echo json_encode(array(
         'success' => true,
         'api_ok' => ($deps['api'] === 'ok'),
         'binary_ok' => ($deps['opencode_binary'] === 'ok'),
         'sudo_ok' => $m->canSudo(),
-        'model' => $model_name
+        'model' => $model_name,
+        'mcp' => $mcp_status
     ));
 } elseif ($op == 'load_provider_models') {
     $endpoint = gr('endpoint');

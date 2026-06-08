@@ -158,6 +158,10 @@
                                 <span class="help-block"><#LANG_OPENCODE_MCP_MAJORDOMO_HELP#></span>
                             </div>
                         </div>
+                        <div class="form-group" id="oc_mcp_status_row" style="display:none;">
+                            <label class="control-label col-md-3">Статус MCP</label>
+                            <div class="col-md-9" id="oc_mcp_status_list"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -461,6 +465,36 @@ function ocUpdateStatus() {
             el = document.getElementById('oc_deps_model'); if (el) el.style.background = modelColor;
             el = document.getElementById('oc_deps_model_label'); if (el) el.textContent = r.api_ok ? r.model : '<#LANG_OPENCODE_NO_CONNECTION#>';
             el = document.getElementById('oc_deps_sudo_label'); if (el) el.textContent = r.sudo_ok ? '<#LANG_OPENCODE_SUDO_OK#>' : '<#LANG_OPENCODE_SUDO_NO#>';
+            var mc = document.getElementById('oc_mcp_status_list');
+            var mr = document.getElementById('oc_mcp_status_row');
+            if (mc && mr) {
+                if (r.mcp && typeof r.mcp === 'object') {
+                    var keys = Object.keys(r.mcp);
+                    if (keys.length > 0) {
+                        mr.style.display = '';
+                        mc.innerHTML = '';
+                        for (var i = 0; i < keys.length; i++) {
+                            var name = keys[i];
+                            var status = r.mcp[name] && r.mcp[name].status;
+                            var ok = status === 'connected';
+                            var w = document.createElement('span');
+                            w.style.cssText = 'margin-right:18px;white-space:nowrap;';
+                            var d = document.createElement('span');
+                            d.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (ok ? '#5cb85c' : '#d9534f') + ';margin-right:5px;vertical-align:middle;';
+                            var l = document.createElement('span');
+                            l.style.cssText = 'vertical-align:middle;font-size:13px;';
+                            l.textContent = name;
+                            w.appendChild(d);
+                            w.appendChild(l);
+                            mc.appendChild(w);
+                        }
+                    } else {
+                        mr.style.display = 'none';
+                    }
+                } else {
+                    mr.style.display = 'none';
+                }
+            }
         } catch(e) {}
     };
     xhr.send();
