@@ -694,6 +694,10 @@ class opencode extends module {
                         if ($server['args']) {
                             $cmd = array_merge($cmd, explode(' ', $server['args']));
                         }
+                        $mcp_python = $this->getMcpPython();
+                        if ($mcp_python !== 'python3' && $cmd[0] === 'python3') {
+                            $cmd[0] = $mcp_python;
+                        }
                         $config['mcp'][$server['name']] = array(
                             'type' => $server['type'] ? $server['type'] : 'local',
                             'command' => $cmd
