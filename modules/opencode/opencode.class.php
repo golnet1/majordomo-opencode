@@ -982,17 +982,13 @@ class opencode extends module {
         } else {
             DebMes("Opencode: pip not found, skipping system install", 'opencode');
         }
-        $venv_python = DIR_MODULES . 'mcp/lib/.venv/bin/python3';
-        $venv_python_win = DIR_MODULES . 'mcp/lib/.venv/Scripts/python.exe';
-        $venv_py = file_exists($venv_python) ? $venv_python : (file_exists($venv_python_win) ? $venv_python_win : null);
-        if ($venv_py) {
-            exec("cd /tmp && " . $venv_py . " -c 'import mcp' 2>&1", $out, $rc);
+        $venv_python = $this->findMcpVenvPython();
+        if ($venv_python) {
+            exec("cd /tmp && " . $venv_python . " -c 'import mcp' 2>&1", $out, $rc);
             if ($rc !== 0) {
-                $venv_pip = dirname($venv_py) . '/pip3';
-                $venv_pip_win = dirname($venv_py) . '/pip.exe';
-                $vp = file_exists($venv_pip) ? $venv_pip : (file_exists($venv_pip_win) ? $venv_pip_win : null);
-                if ($vp) {
-                    exec($vp . " install mcp 2>&1", $output2, $rc2);
+                $venv_pip = $this->findMcpVenvPip();
+                if ($venv_pip) {
+                    exec($venv_pip . " install mcp 2>&1", $output2, $rc2);
                     if ($rc2 === 0) {
                         DebMes("Opencode: mcp installed in MCP venv", 'opencode');
                     }
@@ -1003,19 +999,34 @@ class opencode extends module {
         }
     }
 
+    function findMcpVenvPython() {
+        $candidates = array(
+            DIR_MODULES . 'mcp/.venv/bin/python3',
+            DIR_MODULES . 'mcp/lib/.venv/bin/python3',
+        );
+        foreach ($candidates as $p) {
+            if (file_exists($p)) return $p;
+        }
+        return null;
+    }
+
+    function findMcpVenvPip() {
+        $py = $this->findMcpVenvPython();
+        if (!$py) return null;
+        $dir = dirname($py);
+        $candidates = array($dir . '/pip3', $dir . '/pip');
+        foreach ($candidates as $p) {
+            if (file_exists($p)) return $p;
+        }
+        return null;
+    }
+
     function getMcpPython() {
-        $venv_python = DIR_MODULES . 'mcp/lib/.venv/bin/python3';
-        if (file_exists($venv_python)) {
+        $venv_python = $this->findMcpVenvPython();
+        if ($venv_python) {
             exec("cd /tmp && " . $venv_python . " -c 'import mcp' 2>&1", $out, $rc);
             if ($rc === 0) {
                 return $venv_python;
-            }
-        }
-        $venv_python_win = DIR_MODULES . 'mcp/lib/.venv/Scripts/python.exe';
-        if (file_exists($venv_python_win)) {
-            exec("cd /tmp && " . escapeshellarg($venv_python_win) . " -c 'import mcp' 2>&1", $out, $rc);
-            if ($rc === 0) {
-                return $venv_python_win;
             }
         }
         return 'python3';
@@ -1024,14 +1035,9 @@ class opencode extends module {
     function checkPythonPackage($package) {
         exec("cd /tmp && python3 -c 'import " . $package . "' 2>&1", $output, $return_var);
         if ($return_var === 0) return true;
-        $venv_python = DIR_MODULES . 'mcp/lib/.venv/bin/python3';
-        if (file_exists($venv_python)) {
+        $venv_python = $this->findMcpVenvPython();
+        if ($venv_python) {
             exec("cd /tmp && " . $venv_python . " -c 'import " . $package . "' 2>&1", $output, $return_var);
-            if ($return_var === 0) return true;
-        }
-        $venv_python_win = DIR_MODULES . 'mcp/lib/.venv/Scripts/python.exe';
-        if (file_exists($venv_python_win)) {
-            exec("cd /tmp && " . escapeshellarg($venv_python_win) . " -c 'import " . $package . "' 2>&1", $output, $return_var);
             if ($return_var === 0) return true;
         }
         return false;
