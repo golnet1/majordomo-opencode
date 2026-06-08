@@ -37,6 +37,15 @@
 
     <div [#OK_VISIBLE#] class="alert alert-success"><#LANG_OPENCODE_SAVED#></div>
     <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
+    <div id="oc_mcp_pkg_warning" [#if OC_MCP_PYTHON_OK!="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-warning">
+        Python-пакет <strong>mcp</strong> не установлен. MCP серверы не будут работать.
+        <a href="?action=opencode&md=opencode&tab=settings&view_mode=install_mcp_package" class="btn btn-xs btn-success" style="margin-left:10px;">
+            <span class="glyphicon glyphicon-download-alt"></span> Установить
+        </a>
+        <button class="btn btn-xs btn-info" onclick="ocInstallMcpPkg()" style="margin-left:5px;">
+            <span class="glyphicon glyphicon-download-alt"></span> Установить (AJAX)
+        </button>
+    </div>
     <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
     <div [#SESSION_CLEARED_VISIBLE#] class="alert alert-info"><#LANG_OPENCODE_SESSION_CLEARED#></div>
     <div [#if OC_RESTARTED="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-info"><#LANG_OPENCODE_RESTARTED#></div>
@@ -468,7 +477,15 @@ function ocUpdateStatus() {
             var mc = document.getElementById('oc_mcp_status_list');
             var mr = document.getElementById('oc_mcp_status_row');
             if (mc && mr) {
-                if (r.mcp && typeof r.mcp === 'object') {
+                var pw = document.getElementById('oc_mcp_pkg_warning');
+            if (pw) {
+                if (r.mcp_python_ok) {
+                    pw.style.display = 'none';
+                } else {
+                    pw.style.display = 'block';
+                }
+            }
+            if (r.mcp && typeof r.mcp === 'object') {
                     var keys = Object.keys(r.mcp);
                     if (keys.length > 0) {
                         mr.style.display = '';
@@ -496,6 +513,39 @@ function ocUpdateStatus() {
                 }
             }
         } catch(e) {}
+    };
+    xhr.send();
+}
+function ocInstallMcpPkg() {
+    var btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Установка...';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/modules/opencode/opencode_ajax.php?op=install_mcp_package&_=' + Date.now(), true);
+    xhr.onload = function() {
+        btn.disabled = false;
+        if (xhr.status == 200) {
+            try {
+                var r = JSON.parse(xhr.responseText);
+                if (r.success) {
+                    document.getElementById('oc_mcp_pkg_warning').style.display = 'none';
+                } else {
+                    alert('Ошибка установки пакета mcp');
+                    btn.textContent = 'Установить (AJAX)';
+                }
+            } catch(e) {
+                alert('Ошибка установки пакета mcp');
+                btn.textContent = 'Установить (AJAX)';
+            }
+        } else {
+            alert('Ошибка установки пакета mcp');
+            btn.textContent = 'Установить (AJAX)';
+        }
+    };
+    xhr.onerror = function() {
+        btn.disabled = false;
+        btn.textContent = 'Установить (AJAX)';
+        alert('Ошибка сети');
     };
     xhr.send();
 }

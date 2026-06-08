@@ -392,8 +392,9 @@ class opencode extends module {
         $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : (defined('LANG_OPENCODE_NO_CONNECTION') ? LANG_OPENCODE_NO_CONNECTION : 'Нет подключения');
 
         $mcp_installed = is_dir(DIR_MODULES . 'mcp');
+        $mcp_python_ok = $this->checkPythonPackage('mcp');
 
-        DebMes("Opencode admin: vm=" . ($this->view_mode ?? 'NULL') . " mcp_inst=" . ($mcp_installed ? '1' : '0') . " cfg=" . (is_array($this->config) ? 'array[' . count($this->config) . ']' : 'NOT_ARRAY'), 'opencode');
+        DebMes("Opencode admin: vm=" . ($this->view_mode ?? 'NULL') . " mcp_inst=" . ($mcp_installed ? '1' : '0') . " mcp_py=" . ($mcp_python_ok ? '1' : '0') . " cfg=" . (is_array($this->config) ? 'array[' . count($this->config) . ']' : 'NOT_ARRAY'), 'opencode');
 
         if ($this->view_mode == 'update_settings') {
             $this->getConfig();
@@ -505,7 +506,14 @@ class opencode extends module {
             exit;
         }
 
+        if ($this->view_mode == 'install_mcp_package') {
+            $this->installPythonDeps();
+            header('Location: ?action=opencode&md=opencode&tab=settings');
+            exit;
+        }
+
         $out['OC_MODEL'] = $this->config['OC_MODEL'] ? $this->config['OC_MODEL'] : 'opencode/big-pickle';
+        $out['OC_MCP_PYTHON_OK'] = $mcp_python_ok ? '1' : '0';
         $out['OC_AGENT'] = $this->config['OC_AGENT'] ? $this->config['OC_AGENT'] : 'build';
 
         $system_prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? $this->config['OC_SYSTEM_PROMPT'] : '';
@@ -962,8 +970,29 @@ class opencode extends module {
             $this->installOpencodeBinary();
         }
 
+        $this->installPythonDeps();
         $this->setupServiceDropin();
         $this->syncServiceRestart();
+    }
+
+    function installPythonDeps() {
+        $sudo = $this->isRoot() ? '' : 'sudo ';
+        $pip_cmd = trim(shell_exec('which pip3 2>/dev/null')) ?: trim(shell_exec('which pip 2>/dev/null'));
+        if (!$pip_cmd) {
+            DebMes("Opencode: pip not found, skipping Python deps", 'opencode');
+            return;
+        }
+        exec("{$sudo}{$pip_cmd} install mcp 2>&1", $output, $return_var);
+        if ($return_var !== 0) {
+            DebMes("Opencode: pip install mcp failed: " . implode("\n", $output), 'opencode');
+        } else {
+            DebMes("Opencode: mcp package installed successfully", 'opencode');
+        }
+    }
+
+    function checkPythonPackage($package) {
+        exec("python3 -c 'import " . $package . "' 2>&1", $output, $return_var);
+        return $return_var === 0;
     }
 
     function installOpencodeBinary() {

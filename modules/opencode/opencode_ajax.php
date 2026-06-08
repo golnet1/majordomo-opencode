@@ -71,8 +71,16 @@ if ($op == 'send_message') {
         'binary_ok' => ($deps['opencode_binary'] === 'ok'),
         'sudo_ok' => $m->canSudo(),
         'model' => $model_name,
-        'mcp' => $mcp_status
+        'mcp' => $mcp_status,
+        'mcp_python_ok' => $m->checkPythonPackage('mcp')
     ));
+} elseif ($op == 'install_mcp_package') {
+    ob_clean();
+    $m->installPythonDeps();
+    $ok = $m->checkPythonPackage('mcp');
+    echo json_encode(array('success' => $ok));
+    flush();
+    exit;
 } elseif ($op == 'load_provider_models') {
     $endpoint = gr('endpoint');
     $api_key = gr('api_key');
