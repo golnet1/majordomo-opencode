@@ -988,8 +988,8 @@ class opencode extends module {
                 DebMes("Opencode: mcp package installed successfully", 'opencode');
             }
         }
-        $venv_pip = DIR_MODULES . 'mcp/lib/.venv/bin/pip3';
-        $venv_pip_win = DIR_MODULES . 'mcp/lib/.venv/Scripts/pip.exe';
+        $venv_pip = DIR_MODULES . 'mcp/.venv/bin/pip3';
+        $venv_pip_win = DIR_MODULES . 'mcp/.venv/Scripts/pip.exe';
         if (file_exists($venv_pip)) {
             exec($venv_pip . " install mcp 2>&1", $output2, $rc2);
             if ($rc2 === 0) {
@@ -1004,16 +1004,16 @@ class opencode extends module {
     }
 
     function getMcpPython() {
-        $venv_python = DIR_MODULES . 'mcp/lib/.venv/bin/python3';
+        $venv_python = DIR_MODULES . 'mcp/.venv/bin/python3';
         if (file_exists($venv_python)) {
-            exec($venv_python . " -c 'import mcp; print(mcp.__version__)' 2>&1", $out, $rc);
+            exec("cd /tmp && " . $venv_python . " -c 'import mcp' 2>&1", $out, $rc);
             if ($rc === 0) {
                 return $venv_python;
             }
         }
-        $venv_python_win = DIR_MODULES . 'mcp/lib/.venv/Scripts/python.exe';
+        $venv_python_win = DIR_MODULES . 'mcp/.venv/Scripts/python.exe';
         if (file_exists($venv_python_win)) {
-            exec(escapeshellarg($venv_python_win) . " -c 'import mcp; print(mcp.__version__)' 2>&1", $out, $rc);
+            exec("cd /tmp && " . escapeshellarg($venv_python_win) . " -c 'import mcp' 2>&1", $out, $rc);
             if ($rc === 0) {
                 return $venv_python_win;
             }
@@ -1022,16 +1022,16 @@ class opencode extends module {
     }
 
     function checkPythonPackage($package) {
-        exec("python3 -c 'import " . $package . "; print(" . $package . ".__version__)' 2>&1", $output, $return_var);
+        exec("cd /tmp && python3 -c 'import " . $package . "' 2>&1", $output, $return_var);
         if ($return_var === 0) return true;
-        $venv_python = DIR_MODULES . 'mcp/lib/.venv/bin/python3';
+        $venv_python = DIR_MODULES . 'mcp/.venv/bin/python3';
         if (file_exists($venv_python)) {
-            exec($venv_python . " -c 'import " . $package . "; print(" . $package . ".__version__)' 2>&1", $output, $return_var);
+            exec("cd /tmp && " . $venv_python . " -c 'import " . $package . "' 2>&1", $output, $return_var);
             if ($return_var === 0) return true;
         }
-        $venv_python_win = DIR_MODULES . 'mcp/lib/.venv/Scripts/python.exe';
+        $venv_python_win = DIR_MODULES . 'mcp/.venv/Scripts/python.exe';
         if (file_exists($venv_python_win)) {
-            exec(escapeshellarg($venv_python_win) . " -c 'import " . $package . "; print(" . $package . ".__version__)' 2>&1", $output, $return_var);
+            exec("cd /tmp && " . escapeshellarg($venv_python_win) . " -c 'import " . $package . "' 2>&1", $output, $return_var);
             if ($return_var === 0) return true;
         }
         return false;
