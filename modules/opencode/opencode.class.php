@@ -1001,8 +1001,8 @@ class opencode extends module {
 
     function findMcpVenvPython() {
         $candidates = array(
-            DIR_MODULES . 'mcp/.venv/bin/python3',
-            DIR_MODULES . 'mcp/lib/.venv/bin/python3',
+            realpath(DIR_MODULES) . '/mcp/.venv/bin/python3',
+            realpath(DIR_MODULES) . '/mcp/lib/.venv/bin/python3',
         );
         foreach ($candidates as $p) {
             if (file_exists($p)) return $p;
