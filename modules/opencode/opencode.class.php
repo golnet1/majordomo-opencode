@@ -1095,8 +1095,8 @@ class opencode extends module {
         exec("{$sudo}systemctl daemon-reload 2>/dev/null");
         $this->ensureDirExists($this->opencode_config_dir);
         file_put_contents($this->opencode_config_dir . '/opencode.jsonc', '{}');
-        DebMes("Opencode: binary uninstall started in background", 'opencode');
-        exec("nohup {$sudo} {$this->opencode_bin} uninstall --force >/dev/null 2>&1 &");
+        DebMes("Opencode: removing binary", 'opencode');
+        exec("{$sudo}rm -f " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
         DebMes("Opencode: remove complete", 'opencode');
     }
 
