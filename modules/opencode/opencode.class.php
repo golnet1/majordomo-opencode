@@ -370,7 +370,7 @@ class opencode extends module {
             $deps = $this->checkDependencies($health);
         }
 
-        if ($deps['opencode_binary'] !== 'ok') {
+        if ($deps['opencode_binary'] !== 'ok' && empty($this->config['OC_REMOVED'])) {
             $this->installOpencodeBinary();
             $deps = $this->checkDependencies($health, $is_post);
         }
@@ -461,6 +461,7 @@ class opencode extends module {
                 }
             }
 
+            unset($this->config['OC_REMOVED']);
             $this->saveConfig();
             $this->writeOpencodeConfig();
 
@@ -1097,6 +1098,8 @@ class opencode extends module {
         file_put_contents($this->opencode_config_dir . '/opencode.jsonc', '{}');
         DebMes("Opencode: removing binary", 'opencode');
         exec("{$sudo}rm -f " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
+        $this->config['OC_REMOVED'] = 1;
+        $this->saveConfig();
         DebMes("Opencode: remove complete", 'opencode');
     }
 
