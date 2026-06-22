@@ -527,15 +527,15 @@ function ocInstallMcpPkg() {
                 if (r.success) {
                     document.getElementById('oc_mcp_pkg_warning').style.display = 'none';
                 } else {
-                    alert('Ошибка установки пакета mcp');
+                    alert('Ошибка: ' + (r.error || 'не удалось установить пакет mcp'));
                     btn.textContent = 'Установить';
                 }
             } catch(e) {
-                alert('Ошибка установки пакета mcp');
+                alert('Ошибка: ' + e.message);
                 btn.textContent = 'Установить';
             }
         } else {
-            alert('Ошибка установки пакета mcp');
+            alert('Ошибка HTTP ' + xhr.status);
             btn.textContent = 'Установить';
         }
     };

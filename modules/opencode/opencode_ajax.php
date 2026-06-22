@@ -76,9 +76,9 @@ if ($op == 'send_message') {
     ));
 } elseif ($op == 'install_mcp_package') {
     ob_clean();
-    $m->installPythonDeps();
+    $error_msg = $m->installPythonDeps();
     $ok = $m->checkPythonPackage('mcp');
-    echo json_encode(array('success' => $ok));
+    echo json_encode(array('success' => $ok, 'error' => $error_msg ?: null));
     flush();
     exit;
 } elseif ($op == 'load_provider_models') {

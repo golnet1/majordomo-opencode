@@ -975,16 +975,21 @@ class opencode extends module {
 
     function installPythonDeps() {
         $sudo = $this->isRoot() ? '' : 'sudo ';
-        $pip_cmd = trim(shell_exec('which pip3 2>/dev/null')) ?: trim(shell_exec('which pip 2>/dev/null'));
+        $errors = array();
+        $pip_cmd = trim(shell_exec('which pip3 2>/dev/null')) ?: trim(shell_exec('which pip 2>/dev/null')) ?: trim(shell_exec('command -v pip3 2>/dev/null')) ?: trim(shell_exec('command -v pip 2>/dev/null'));
         if ($pip_cmd) {
             exec("cd /tmp && {$sudo}{$pip_cmd} install mcp 2>&1", $output, $return_var);
             if ($return_var !== 0) {
-                DebMes("Opencode: pip install mcp failed: " . implode("\n", $output), 'opencode');
+                $msg = "pip install mcp failed: " . implode("\n", $output);
+                DebMes("Opencode: " . $msg, 'opencode');
+                $errors[] = $msg;
             } else {
                 DebMes("Opencode: mcp package installed successfully", 'opencode');
             }
         } else {
-            DebMes("Opencode: pip not found, skipping system install", 'opencode');
+            $msg = "pip3/pip not found";
+            DebMes("Opencode: " . $msg, 'opencode');
+            $errors[] = $msg;
         }
         $venv_python = $this->findMcpVenvPython();
         if ($venv_python) {
@@ -995,12 +1000,17 @@ class opencode extends module {
                     exec($venv_pip . " install mcp 2>&1", $output2, $rc2);
                     if ($rc2 === 0) {
                         DebMes("Opencode: mcp installed in MCP venv", 'opencode');
+                    } else {
+                        $errors[] = "venv pip install failed";
                     }
+                } else {
+                    $errors[] = "venv pip not found";
                 }
             } else {
                 DebMes("Opencode: mcp already available in MCP venv, skipping", 'opencode');
             }
         }
+        return implode('; ', $errors);
     }
 
     function findMcpVenvPython() {
