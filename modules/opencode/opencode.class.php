@@ -17,7 +17,7 @@ class opencode extends module {
         $this->checkInstalled();
         $this->getConfig();
 
-        $this->opencode_bin = '/usr/local/bin/opencode';
+        $this->opencode_bin = $this->findOpencodeBinary();
         $this->opencode_db = '/var/www/.local/share/opencode/opencode.db';
         $this->opencode_config_dir = '/var/www/.config/opencode';
     }
@@ -816,7 +816,7 @@ class opencode extends module {
             $unit .= "After=network.target\n\n";
             $unit .= "[Service]\n";
             $unit .= "Type=simple\n";
-            $unit .= "ExecStart=/usr/local/bin/opencode web --port {$port} --hostname {$hostname}\n";
+            $unit .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
             $unit .= "Restart=always\n";
             $unit .= "RestartSec=5\n\n";
             $unit .= "[Install]\n";
@@ -841,7 +841,7 @@ class opencode extends module {
             $content .= "Environment=OPENCODE_SERVER_USERNAME=" . escapeshellarg($login) . "\n";
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . escapeshellarg($password) . "\n";
         }
-        $content .= "ExecStart=/usr/local/bin/opencode web --port {$port} --hostname {$hostname}\n";
+        $content .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
         $override_dir = '/etc/systemd/system/opencode-web.service.d';
         $override_file = $override_dir . '/override.conf';
 
@@ -890,6 +890,11 @@ class opencode extends module {
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
+    }
+
+    function findOpencodeBinary() {
+        $bin = trim(exec('command -v opencode 2>/dev/null'));
+        return $bin ?: '/usr/local/bin/opencode';
     }
 
     function executeMajordomoCommand($command) {
@@ -978,7 +983,7 @@ class opencode extends module {
         $errors = array();
         $pip_cmd = trim(shell_exec('which pip3 2>/dev/null')) ?: trim(shell_exec('which pip 2>/dev/null')) ?: trim(shell_exec('command -v pip3 2>/dev/null')) ?: trim(shell_exec('command -v pip 2>/dev/null'));
         if ($pip_cmd) {
-            exec("cd /tmp && {$sudo}{$pip_cmd} install mcp 2>&1", $output, $return_var);
+            exec("cd /tmp && {$sudo}{$pip_cmd} install mcp --ignore-installed rpds-py 2>&1", $output, $return_var);
             if ($return_var !== 0) {
                 $msg = "pip install mcp failed: " . implode("\n", $output);
                 DebMes("Opencode: " . $msg, 'opencode');
@@ -1057,10 +1062,13 @@ class opencode extends module {
             DebMes("npm install failed, trying curl install...", 'opencode');
             exec("{$sudo}curl -fsSL https://opencode.ai/install | {$sudo}bash 2>&1", $install_output, $return_var);
         }
-        if ($return_var !== 0) {
-            DebMes("Opencode installation failed", 'opencode');
+        $new_bin = $this->findOpencodeBinary();
+        if (file_exists($new_bin)) {
+            $this->opencode_bin = $new_bin;
+            DebMes("Opencode binary found at: " . $this->opencode_bin, 'opencode');
+            exec("{$sudo}chmod 755 " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
         } else {
-            exec("{$sudo}chmod 755 /usr/local/bin/opencode 2>/dev/null");
+            DebMes("Opencode installation failed", 'opencode');
         }
     }
 
@@ -1091,7 +1099,7 @@ class opencode extends module {
         $this->ensureDirExists($this->opencode_config_dir);
         file_put_contents($this->opencode_config_dir . '/opencode.jsonc', '{}');
         exec("{$sudo}rm -rf /root/.opencode 2>/dev/null");
-        exec("{$sudo}rm -f /usr/local/bin/opencode 2>/dev/null");
+        exec("{$sudo}rm -f " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
         parent::uninstall();
     }
 
