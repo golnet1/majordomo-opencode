@@ -969,13 +969,26 @@ class opencode extends module {
             @chgrp($tmpdir, 'www-data');
         }
 
+        echo '<div class="alert alert-info">Установка OpenCode binary...</div>';
+        @ob_flush(); flush();
         if (!file_exists($this->opencode_bin)) {
             $this->installOpencodeBinary();
         }
+        echo '<div class="alert alert-success">OpenCode binary: OK</div>';
+        @ob_flush(); flush();
 
+        echo '<div class="alert alert-info">Установка Python-пакета mcp...</div>';
+        @ob_flush(); flush();
         $this->installPythonDeps();
+        echo '<div class="alert alert-success">Python-пакет mcp: OK</div>';
+        @ob_flush(); flush();
+
+        echo '<div class="alert alert-info">Настройка systemd сервиса...</div>';
+        @ob_flush(); flush();
         $this->setupServiceDropin();
         $this->syncServiceRestart();
+        echo '<div class="alert alert-success">Сервис opencode-web запущен</div>';
+        @ob_flush(); flush();
     }
 
     function installPythonDeps() {
