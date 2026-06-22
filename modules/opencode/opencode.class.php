@@ -501,8 +501,16 @@ class opencode extends module {
             unset($this->config['OC_RESTARTED']);
         }
 
-        if ($this->view_mode == 'remove_opencode') {
-            $this->removeOpencode();
+        if ($this->view_mode == 'toggle_opencode') {
+            if ($binary_ok) {
+                $this->removeOpencode();
+            } else {
+                unset($this->config['OC_REMOVED']);
+                $this->saveConfig();
+                $this->installOpencodeBinary();
+                $this->setupServiceDropin();
+                $this->syncServiceRestart();
+            }
             echo '<html><head><meta http-equiv="refresh" content="0;url=/admin.php"></head><body></body></html>';
             exit;
         }

@@ -16,9 +16,14 @@
     <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;align-items:center;">
         <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=restart_opencode" class="btn btn-warning btn-sm" title="<#LANG_OPENCODE_RESTART_SERVICE_HELP#>">
            <span class="glyphicon glyphicon-refresh"></span> <#LANG_OPENCODE_RESTART_SERVICE#></a>
-        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=remove_opencode" class="btn btn-danger btn-sm" title="<#LANG_OPENCODE_REMOVE_OPENCODE_CONFIRM#>"
+        [#if DEPS_BINARY_LABEL="OK"#]
+        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=toggle_opencode" class="btn btn-danger btn-sm" title="<#LANG_OPENCODE_REMOVE_OPENCODE_CONFIRM#>"
            onclick="return confirm('Вы точно уверены?')">
            <span class="glyphicon glyphicon-trash"></span> <#LANG_OPENCODE_REMOVE_OPENCODE#></a>
+        [#else#]
+        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=toggle_opencode" class="btn btn-success btn-sm">
+           <span class="glyphicon glyphicon-download-alt"></span> Установить OpenCode AI</a>
+        [#endif#]
         [#if TAB_HELP!="1"#]
         <a href="?action=opencode&md=opencode&tab=help" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_HELP#>"><span class="glyphicon glyphicon-question-sign"></span></a>
         [#endif#]
