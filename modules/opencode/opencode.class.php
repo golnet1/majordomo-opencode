@@ -431,10 +431,13 @@ class opencode extends module {
                 $bg_timeout = (int)gr('oc_bg_timeout');
                 $this->config['OC_BG_TIMEOUT'] = max(5, min(120, $bg_timeout > 0 ? $bg_timeout : 30));
                 $this->config['OC_PURE_MODE'] = gr('oc_pure_mode') ? 1 : 0;
+                $oc_majordomo_mcp_val = gr('oc_majordomo_mcp');
                 if ($mcp_installed) {
-                    $this->config['OC_MAJORDOMO_MCP'] = gr('oc_majordomo_mcp') ? 1 : 0;
+                    $this->config['OC_MAJORDOMO_MCP'] = $oc_majordomo_mcp_val ? 1 : 0;
                 }
+                DebMes("Opencode: MCP checkbox raw='{$oc_majordomo_mcp_val}' mcp_installed=" . ($mcp_installed ? '1' : '0') . " saved=" . ($this->config['OC_MAJORDOMO_MCP'] ?? 'NULL'), 'opencode');
                 $this->config['OC_SESSION_REUSE'] = gr('oc_session_reuse') ? 1 : 0;
+                DebMes("Opencode: saveConfig pre-call MAX_HISTORY=" . ($this->config['OC_MAX_HISTORY'] ?? 'NULL') . " TIMEOUT=" . ($this->config['OC_TIMEOUT'] ?? 'NULL') . " BG_TO=" . ($this->config['OC_BG_TIMEOUT'] ?? 'NULL'), 'opencode');
 
                 $prompt = trim($this->config['OC_SYSTEM_PROMPT']);
                 if (!$prompt && !empty($this->config['OC_MAJORDOMO_MCP'])) {
@@ -463,6 +466,7 @@ class opencode extends module {
 
             unset($this->config['OC_REMOVED']);
             $this->saveConfig();
+            DebMes("Opencode: after saveConfig (memory) MAJORDOMO_MCP=" . ($this->config['OC_MAJORDOMO_MCP'] ?? 'NULL') . " MAX_HISTORY=" . ($this->config['OC_MAX_HISTORY'] ?? 'NULL') . " TIMEOUT=" . ($this->config['OC_TIMEOUT'] ?? 'NULL'), 'opencode');
             $this->writeOpencodeConfig();
 
             $rec = SQLSelectOne("SELECT * FROM settings WHERE NAME='HOOK_EVENT_COMMAND'");
