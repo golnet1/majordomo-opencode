@@ -467,6 +467,9 @@ class opencode extends module {
             unset($this->config['OC_REMOVED']);
             $this->saveConfig();
             DebMes("Opencode: after saveConfig (memory) MAJORDOMO_MCP=" . ($this->config['OC_MAJORDOMO_MCP'] ?? 'NULL') . " MAX_HISTORY=" . ($this->config['OC_MAX_HISTORY'] ?? 'NULL') . " TIMEOUT=" . ($this->config['OC_TIMEOUT'] ?? 'NULL'), 'opencode');
+            $verify = SQLSelectOne("SELECT DATA FROM project_modules WHERE NAME='" . $this->name . "'");
+            $verify_data = $verify['DATA'] ? unserialize($verify['DATA']) : array();
+            DebMes("Opencode: after saveConfig (db) MAJORDOMO_MCP=" . ($verify_data['OC_MAJORDOMO_MCP'] ?? 'NULL') . " MAX_HISTORY=" . ($verify_data['OC_MAX_HISTORY'] ?? 'NULL') . " MODEL=" . ($verify_data['OC_MODEL'] ?? 'NULL'), 'opencode');
             $this->writeOpencodeConfig();
 
             $rec = SQLSelectOne("SELECT * FROM settings WHERE NAME='HOOK_EVENT_COMMAND'");
