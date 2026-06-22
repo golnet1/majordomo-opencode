@@ -396,9 +396,9 @@ class opencode extends module {
 
         DebMes("Opencode admin: vm=" . ($this->view_mode ?? 'NULL') . " mcp_inst=" . ($mcp_installed ? '1' : '0') . " mcp_py=" . ($mcp_python_ok ? '1' : '0') . " cfg=" . (is_array($this->config) ? 'array[' . count($this->config) . ']' : 'NOT_ARRAY'), 'opencode');
 
-        if ($this->view_mode == 'update_settings') {
+        if ($is_post && $this->view_mode == 'update_settings') {
             $this->getConfig();
-            DebMes("Opencode: SAVING SETTINGS", 'opencode');
+            DebMes("Opencode: SAVING SETTINGS (post_vars=" . count($_POST) . " get_vars=" . count($_GET) . ")", 'opencode');
             $saved_tab = gr('tab');
 
             if ($saved_tab === 'settings') {
