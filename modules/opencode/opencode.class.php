@@ -113,7 +113,7 @@ class opencode extends module {
         $out['EDIT_MODE'] = $this->edit_mode;
         $out['MODE'] = $this->mode;
         $out['ACTION'] = $this->action;
-        $out['TAB'] = $this->tab;
+        if (!isset($out['TAB'])) $out['TAB'] = $this->tab;
 
         if ($this->single_rec) $out['SINGLE_REC'] = 1;
 
