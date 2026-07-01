@@ -8,6 +8,8 @@ require_once "./load_settings.php";
 header('Content-Type: application/json; charset=utf-8');
 
 $session = new session("prj");
+$user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
+session_write_close();
 require_once "./modules/opencode/opencode.class.php";
 $m = new opencode();
 $m->action = 'admin';
@@ -19,7 +21,6 @@ if ($op == 'send_message') {
         echo json_encode(array('success' => false, 'error' => 'Пустое сообщение'));
         exit;
     }
-    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
     $m->saveMessageToHistory($msg, 'user', $user_id);
     $placeholder_id = $m->saveMessageToHistory('…', 'assistant', $user_id);
     session_write_close();
@@ -41,17 +42,15 @@ if ($op == 'send_message') {
                 echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
             }
         } else {
-            echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_MESSAGE_NOT_FOUND') ? LANG_OPENCODE_MESSAGE_NOT_FOUND : 'Сообщение не найдено'));
+            echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_MESSAGE_NOT_FOUND));
         }
     } else {
-        echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_NO_MESSAGE_ID') ? LANG_OPENCODE_NO_MESSAGE_ID : 'Не указан ID сообщения'));
+        echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_NO_MESSAGE_ID));
     }
 } elseif ($op == 'clear_history') {
-    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
     SQLExec("DELETE FROM opencode_messages WHERE USER_ID='" . $user_id . "'");
     echo json_encode(array('success' => true));
 } elseif ($op == 'load_history') {
-    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
     $messages = SQLSelect("SELECT * FROM opencode_messages WHERE USER_ID='" . $user_id . "' ORDER BY ID ASC");
     echo json_encode(array('success' => true, 'messages' => $messages));
 } elseif ($op == 'load_devices') {
@@ -85,7 +84,7 @@ if ($op == 'send_message') {
     $endpoint = gr('endpoint');
     $api_key = gr('api_key');
     if (!$endpoint) {
-        echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_NO_ENDPOINT') ? LANG_OPENCODE_NO_ENDPOINT : 'Не указан endpoint'));
+        echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_NO_ENDPOINT));
         exit;
     }
     $endpoint = rtrim($endpoint, '/');
@@ -133,7 +132,7 @@ if ($op == 'send_message') {
     sort($models);
     echo json_encode(array('success' => true, 'models' => $models));
 } else {
-    echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_UNKNOWN_OPERATION') ? LANG_OPENCODE_UNKNOWN_OPERATION : 'Неизвестная операция'));
+    echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_UNKNOWN_OPERATION));
 }
 
 $session->save();

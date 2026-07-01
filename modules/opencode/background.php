@@ -20,7 +20,7 @@ if ($response) {
     $m->processDeviceCommands($response);
     $rec['MESSAGE'] = $response;
 } else {
-    $rec['MESSAGE'] = defined('LANG_OPENCODE_NO_RESPONSE') ? LANG_OPENCODE_NO_RESPONSE : 'Извините, не удалось получить ответ';
+    $rec['MESSAGE'] = LANG_OPENCODE_NO_RESPONSE;
 }
 $rec['ROLE'] = 'assistant';
 SQLUpdate('opencode_messages', $rec);

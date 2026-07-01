@@ -6,7 +6,7 @@
             <span id="oc_deps_binary" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_BINARY_COLOR#];margin-right:3px;vertical-align:middle;"></span>
             <span id="oc_deps_binary_label" style="vertical-align:middle;">OpenCode</span>
             <span id="oc_deps_api" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_API_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
-            <span id="oc_deps_api_label" style="vertical-align:middle;">API сервер</span>
+            <span id="oc_deps_api_label" style="vertical-align:middle;"><#LANG_OPENCODE_API_SERVER#></span>
             <span id="oc_deps_sudo" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_SUDO_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
             <span id="oc_deps_sudo_label" style="vertical-align:middle;">Sudo ([#DEPS_SUDO_LABEL#])</span>
             <span id="oc_deps_model" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_MODEL_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
@@ -18,34 +18,34 @@
            <span class="glyphicon glyphicon-refresh"></span> <#LANG_OPENCODE_RESTART_SERVICE#></a>
         [#if DEPS_BINARY_LABEL="OK"#]
         <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=toggle_opencode" class="btn btn-danger btn-sm" title="<#LANG_OPENCODE_REMOVE_OPENCODE_CONFIRM#>"
-           onclick="return confirm('Вы точно уверены?')">
+           onclick="return confirm('<#LANG_OPENCODE_ARE_YOU_SURE#>')">
            <span class="glyphicon glyphicon-trash"></span> <#LANG_OPENCODE_REMOVE_OPENCODE#></a>
         [#else#]
         <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=toggle_opencode" class="btn btn-success btn-sm">
-           <span class="glyphicon glyphicon-download-alt"></span> Установить OpenCode AI</a>
+           <span class="glyphicon glyphicon-download-alt"></span> <#LANG_OPENCODE_DOWNLOAD_OPENCODE#></a>
         [#endif#]
         [#if TAB_HELP!="1"#]
         <a href="?action=opencode&md=opencode&tab=help" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_HELP#>"><span class="glyphicon glyphicon-question-sign"></span></a>
         [#endif#]
-        <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#opencode_about">О модуле&nbsp;&nbsp;<span class="glyphicon glyphicon-info-sign icon-white"></span></button>
+        <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#opencode_about"><#LANG_OPENCODE_ABOUT_MODULE#>&nbsp;&nbsp;<span class="glyphicon glyphicon-info-sign icon-white"></span></button>
     </div>
     <hr>
 
     <ul class="nav nav-tabs">
-        <li [#if TAB_SETTINGS="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=settings">Провайдеры, модели и MCP</a></li>
-        <li [#if TAB_SERVER="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=server">Настройки сервера</a></li>
-        <li [#if TAB_CHAT="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=chat">Чат</a></li>
+        <li [#if TAB_SETTINGS="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=settings"><#LANG_OPENCODE_TAB_SETTINGS#></a></li>
+        <li [#if TAB_SERVER="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=server"><#LANG_OPENCODE_TAB_SERVER#></a></li>
+        <li [#if TAB_CHAT="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=chat"><#LANG_OPENCODE_TAB_CHAT#></a></li>
         <li [#if TAB_WEB="1"#]class="active"[#endif#] [#TAB_WEB_NAV_VISIBLE#]><a href="?action=opencode&md=opencode&tab=web"><#LANG_OPENCODE_WEB#></a></li>
-        <li [#if TAB_HELP="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=help">Помощь</a></li>
+        <li [#if TAB_HELP="1"#]class="active"[#endif#]><a href="?action=opencode&md=opencode&tab=help"><#LANG_OPENCODE_TAB_HELP#></a></li>
     </ul>
     <br>
 
     <div [#OK_VISIBLE#] class="alert alert-success"><#LANG_OPENCODE_SAVED#></div>
     <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
     <div id="oc_mcp_pkg_warning" [#if OC_MCP_PYTHON_OK!="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-warning">
-        Python-пакет <strong>mcp</strong> не установлен. MCP серверы не будут работать.
+        <#LANG_OPENCODE_MCP_PKG_WARNING#>
         <button class="btn btn-xs btn-success" onclick="ocInstallMcpPkg()" style="margin-left:10px;">
-            <span class="glyphicon glyphicon-download-alt"></span> Установить
+            <span class="glyphicon glyphicon-download-alt"></span> <#LANG_OPENCODE_INSTALL#>
         </button>
     </div>
     <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
@@ -137,7 +137,7 @@
                                         <option value=""><#LANG_OPENCODE_SELECT_PROVIDER_MODEL#></option>
                                     </select>
                                     <span class="input-group-btn">
-                                        <button type="button" class="btn btn-default" onclick="ocLoadProviderModels()" id="oc_load_models_btn">Загрузить</button>
+                                        <button type="button" class="btn btn-default" onclick="ocLoadProviderModels()" id="oc_load_models_btn"><#LANG_OPENCODE_LOAD_MODELS#></button>
                                     </span>
                                 </div>
                                 <input type="text" name="oc_provider_model" id="oc_provider_model" class="form-control" style="margin-top:5px;" placeholder="gpt-4o" value="[#OC_PROVIDER_MODEL#]">
@@ -170,7 +170,7 @@
                             </div>
                         </div>
                         <div class="form-group" id="oc_mcp_status_row" style="display:none;">
-                            <label class="control-label col-md-3">Статус MCP</label>
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_MCP_STATUS#></label>
                             <div class="col-md-9" id="oc_mcp_status_list"></div>
                         </div>
                     </div>
@@ -244,7 +244,7 @@
             <div class="panel panel-default">
                 <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_server_accordion" data-target="#oc_server_network">
                     <span class="glyphicon glyphicon-globe" style="margin-right:8px;"></span>
-                    Сеть и авторизация
+                    <#LANG_OPENCODE_NETWORK_AUTH#>
                     <span class="caret" style="float:right;margin-top:8px;"></span>
                 </div>
                 <div id="oc_server_network" class="panel-collapse collapse">
@@ -285,7 +285,7 @@
             <div class="panel panel-default">
                 <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_server_accordion" data-target="#oc_server_access">
                     <span class="glyphicon glyphicon-lock" style="margin-right:8px;"></span>
-                    Полный доступ
+                    <#LANG_OPENCODE_FULL_ACCESS#>
                     <span class="caret" style="float:right;margin-top:8px;"></span>
                 </div>
                 <div id="oc_server_access" class="panel-collapse collapse">
@@ -304,7 +304,7 @@
             <div class="panel panel-default">
                 <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_server_accordion" data-target="#oc_server_diag">
                     <span class="glyphicon glyphicon-heart" style="margin-right:8px;"></span>
-                    Диагностика системы
+                    <#LANG_OPENCODE_DIAGNOSTICS#>
                     <span class="caret" style="float:right;margin-top:8px;"></span>
                 </div>
                 <div id="oc_server_diag" class="panel-collapse collapse">
@@ -316,7 +316,7 @@
                             <strong><#LANG_OPENCODE_SESSION_ID_LABEL#>:</strong> [#OC_SESSION_ID#]
 <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=clear_session" class="btn btn-xs btn-warning" onclick="return confirm('<#LANG_OPENCODE_CONFIRM_CLEAR_SESSION#>')"><#LANG_OPENCODE_CLEAR_SESSION#></a>
 <br>
-                            <strong>Токены сессии:</strong> [#OC_SESSION_TOKENS_DISPLAY#]
+                            <strong><#LANG_OPENCODE_SESSION_TOKENS#></strong> [#OC_SESSION_TOKENS_DISPLAY#]
 
                         </p>
                     </div>
@@ -521,7 +521,7 @@ function ocUpdateStatus() {
 function ocInstallMcpPkg() {
     var btn = event.target;
     btn.disabled = true;
-    btn.textContent = 'Установка...';
+    btn.textContent = '<#LANG_OPENCODE_INSTALLING#>';
     var xhr = new XMLHttpRequest();
     xhr.open('GET', '/modules/opencode/opencode_ajax.php?op=install_mcp_package&_=' + Date.now(), true);
     xhr.onload = function() {
@@ -532,22 +532,22 @@ function ocInstallMcpPkg() {
                 if (r.success) {
                     document.getElementById('oc_mcp_pkg_warning').style.display = 'none';
                 } else {
-                    alert('Ошибка: ' + (r.error || 'не удалось установить пакет mcp'));
-                    btn.textContent = 'Установить';
+                    alert('<#LANG_OPENCODE_ERROR_PREFIX#>' + (r.error || '<#LANG_OPENCODE_INSTALL_FAILED#>'));
+                    btn.textContent = '<#LANG_OPENCODE_INSTALL#>';
                 }
             } catch(e) {
-                alert('Ошибка: ' + e.message);
-                btn.textContent = 'Установить';
+                alert('<#LANG_OPENCODE_ERROR_PREFIX#>' + e.message);
+                btn.textContent = '<#LANG_OPENCODE_INSTALL#>';
             }
         } else {
-            alert('Ошибка HTTP ' + xhr.status);
-            btn.textContent = 'Установить';
+            alert('<#LANG_OPENCODE_HTTP_ERROR#>' + xhr.status);
+            btn.textContent = '<#LANG_OPENCODE_INSTALL#>';
         }
     };
     xhr.onerror = function() {
         btn.disabled = false;
-        btn.textContent = 'Установить';
-        alert('Ошибка сети');
+        btn.textContent = '<#LANG_OPENCODE_INSTALL#>';
+        alert('<#LANG_OPENCODE_NETWORK_ERROR#>');
     };
     xhr.send();
 }

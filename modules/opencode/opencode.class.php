@@ -12,7 +12,7 @@ class opencode extends module {
     function __construct() {
         $this->name = 'opencode';
         $this->loadLanguage();
-        $this->title = defined('LANG_OPENCODE_TITLE') ? LANG_OPENCODE_TITLE : 'OpenCode AI';
+        $this->title = LANG_OPENCODE_TITLE;
         $this->module_category = '<#LANG_SECTION_APPLICATIONS#>';
         $this->checkInstalled();
         $this->getConfig();
@@ -164,15 +164,14 @@ class opencode extends module {
         $body = new stdClass();
         $prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? trim($this->config['OC_SYSTEM_PROMPT']) : '';
         if (empty($this->config['OC_FULL_ACCESS'])) {
-            $restrictions = "\n\nВАЖНЫЕ ОГРАНИЧЕНИЯ БЕЗОПАСНОСТИ:\n"
-                . "- Файловые операции разрешены ТОЛЬКО в: /var/www/html/cms/files/, /tmp/, /var/www/tmp/opencode/\n"
-                . "- НЕ изменяй, НЕ удаляй и НЕ создавай файлы за пределами этих директорий\n"
-                . "- НЕ выполняй команды, которые могут завершить работу системы: reboot, shutdown, poweroff, halt, init, systemctl poweroff, systemctl reboot, shutdown\n"
-                . "- НЕ выполняй команды, завершающие работу php, apache, mysql, nginx, memcached\n"
-                . "- НЕ используй команды kill, killall, pkill, skill\n"
-                . "- НЕ изменяй конфигурационные файлы системы (/etc/, /var/www/html/config.php и т.д.)\n"
-                . "- НЕ устанавливай и не удаляй пакеты (apt, dpkg, pip, npm, gem, cpan)\n"
-                . "- Запрещено изменять, удалять или перезаписывать файлы ядра Majordomo и его модули\n";
+            $restrictions = "\n\n" . LANG_OPENCODE_RESTRICTION_HEADER . "\n"
+                . LANG_OPENCODE_RESTRICTION_FILE_OPS . "\n"
+                . LANG_OPENCODE_RESTRICTION_SYSTEM_CMDS . "\n"
+                . LANG_OPENCODE_RESTRICTION_SERVICE_CMDS . "\n"
+                . LANG_OPENCODE_RESTRICTION_KILL_CMDS . "\n"
+                . LANG_OPENCODE_RESTRICTION_CONFIG . "\n"
+                . LANG_OPENCODE_RESTRICTION_PACKAGES . "\n"
+                . LANG_OPENCODE_RESTRICTION_CORE . "\n";
             $prompt .= $restrictions;
         }
         if ($prompt) {
@@ -263,15 +262,15 @@ class opencode extends module {
     function usual(&$out) {
         $this->getConfig();
         $out['OC_SESSION_REUSE'] = $this->config['OC_SESSION_REUSE'];
-        $out['OC_LANG_SEND'] = defined('LANG_OPENCODE_SEND') ? LANG_OPENCODE_SEND : 'Send';
-        $out['OC_LANG_TYPING'] = defined('LANG_OPENCODE_TYPING') ? LANG_OPENCODE_TYPING : '...';
-        $out['OC_LANG_CLEAR_CONFIRM'] = defined('LANG_OPENCODE_CLEAR_CONFIRM') ? LANG_OPENCODE_CLEAR_CONFIRM : 'Clear chat history?';
-        $out['OC_LANG_HISTORY_CLEARED'] = defined('LANG_OPENCODE_HISTORY_CLEARED') ? LANG_OPENCODE_HISTORY_CLEARED : 'History cleared. How can I help you?';
-        $out['OC_LANG_HOW_CAN_I_HELP'] = defined('LANG_OPENCODE_HOW_CAN_I_HELP') ? LANG_OPENCODE_HOW_CAN_I_HELP : 'How can I help you?';
-        $out['OC_LANG_CONNECT_ERROR'] = defined('LANG_OPENCODE_CONNECT_ERROR') ? LANG_OPENCODE_CONNECT_ERROR : 'Connection error. Please try again.';
-        $out['OC_LANG_SERVER_ERROR'] = defined('LANG_OPENCODE_SERVER_ERROR') ? LANG_OPENCODE_SERVER_ERROR : 'Invalid response from server';
-        $out['OC_LANG_UNKNOWN_ERROR'] = defined('LANG_OPENCODE_UNKNOWN_ERROR') ? LANG_OPENCODE_UNKNOWN_ERROR : 'Unknown error';
-        $out['OC_LANG_ERROR_PREFIX'] = defined('LANG_OPENCODE_ERROR_PREFIX') ? LANG_OPENCODE_ERROR_PREFIX : 'Error: ';
+        $out['OC_LANG_SEND'] = LANG_OPENCODE_SEND;
+        $out['OC_LANG_TYPING'] = LANG_OPENCODE_TYPING;
+        $out['OC_LANG_CLEAR_CONFIRM'] = LANG_OPENCODE_CLEAR_CONFIRM;
+        $out['OC_LANG_HISTORY_CLEARED'] = LANG_OPENCODE_HISTORY_CLEARED;
+        $out['OC_LANG_HOW_CAN_I_HELP'] = LANG_OPENCODE_HOW_CAN_I_HELP;
+        $out['OC_LANG_CONNECT_ERROR'] = LANG_OPENCODE_CONNECT_ERROR;
+        $out['OC_LANG_SERVER_ERROR'] = LANG_OPENCODE_SERVER_ERROR;
+        $out['OC_LANG_UNKNOWN_ERROR'] = LANG_OPENCODE_UNKNOWN_ERROR;
+        $out['OC_LANG_ERROR_PREFIX'] = LANG_OPENCODE_ERROR_PREFIX;
     }
 
     function checkDependencies(&$health_result = null, $short_timeout = false) {
@@ -307,7 +306,7 @@ class opencode extends module {
             if ($op == 'send_message') {
                 $msg = gr('message');
                 if (!$msg) {
-                    echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_EMPTY_MESSAGE') ? LANG_OPENCODE_EMPTY_MESSAGE : 'Пустое сообщение'));
+                    echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_EMPTY_MESSAGE));
                 } else {
                     $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
                     $this->saveMessageToHistory($msg, 'user', $user_id);
@@ -331,10 +330,10 @@ class opencode extends module {
                             echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
                         }
                     } else {
-                    echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_MESSAGE_NOT_FOUND') ? LANG_OPENCODE_MESSAGE_NOT_FOUND : 'Сообщение не найдено'));
+                    echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_MESSAGE_NOT_FOUND));
                 }
             } else {
-                echo json_encode(array('success' => false, 'error' => defined('LANG_OPENCODE_NO_MESSAGE_ID') ? LANG_OPENCODE_NO_MESSAGE_ID : 'Не указан ID сообщения'));
+                echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_NO_MESSAGE_ID));
                 }
             } elseif ($op == 'clear_history') {
                 $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
@@ -396,7 +395,7 @@ class opencode extends module {
 
         $model_name = $this->config['OC_PROVIDER_ENDPOINT'] ? ($this->config['OC_PROVIDER_MODEL'] ?: $this->config['OC_MODEL']) : ($this->config['OC_MODEL'] ?: 'opencode/big-pickle');
         $out['DEPS_MODEL_COLOR'] = $api_ok ? '#5cb85c' : '#d9534f';
-        $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : (defined('LANG_OPENCODE_NO_CONNECTION') ? LANG_OPENCODE_NO_CONNECTION : 'Нет подключения');
+        $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : LANG_OPENCODE_NO_CONNECTION;
 
         $mcp_installed = is_dir(DIR_MODULES . 'mcp');
         $mcp_python_ok = $this->checkPythonPackage('mcp');
@@ -448,7 +447,7 @@ class opencode extends module {
 
                 $prompt = trim($this->config['OC_SYSTEM_PROMPT']);
                 if (!$prompt && !empty($this->config['OC_MAJORDOMO_MCP'])) {
-                    $this->config['OC_SYSTEM_PROMPT'] = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Для работы с файлами используй инструменты read/edit/write, а не bash-команды. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
+                    $this->config['OC_SYSTEM_PROMPT'] = LANG_OPENCODE_SYSTEM_PROMPT_DEFAULT;
                 }
             }
 
@@ -535,7 +534,7 @@ class opencode extends module {
 
         $system_prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? $this->config['OC_SYSTEM_PROMPT'] : '';
         if (!$system_prompt) {
-            $system_prompt = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Для работы с файлами используй инструменты read/edit/write, а не bash-команды. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
+            $system_prompt = LANG_OPENCODE_SYSTEM_PROMPT_DEFAULT;
         }
         $out['OC_SYSTEM_PROMPT'] = $system_prompt;
         $out['OC_MCP_SERVERS'] = $this->config['OC_MCP_SERVERS'];
@@ -614,15 +613,15 @@ class opencode extends module {
         $out['OC_WEB_URL'] = "{$scheme}://{$host}:{$port}";
         $out['OC_API_URL'] = "http://127.0.0.1:{$port}";
 
-        $out['OC_LANG_SEND'] = defined('LANG_OPENCODE_SEND') ? LANG_OPENCODE_SEND : 'Send';
-        $out['OC_LANG_TYPING'] = defined('LANG_OPENCODE_TYPING') ? LANG_OPENCODE_TYPING : '...';
-        $out['OC_LANG_CLEAR_CONFIRM'] = defined('LANG_OPENCODE_CLEAR_CONFIRM') ? LANG_OPENCODE_CLEAR_CONFIRM : 'Clear chat history?';
-        $out['OC_LANG_HISTORY_CLEARED'] = defined('LANG_OPENCODE_HISTORY_CLEARED') ? LANG_OPENCODE_HISTORY_CLEARED : 'History cleared. How can I help you?';
-        $out['OC_LANG_HOW_CAN_I_HELP'] = defined('LANG_OPENCODE_HOW_CAN_I_HELP') ? LANG_OPENCODE_HOW_CAN_I_HELP : 'How can I help you?';
-        $out['OC_LANG_CONNECT_ERROR'] = defined('LANG_OPENCODE_CONNECT_ERROR') ? LANG_OPENCODE_CONNECT_ERROR : 'Connection error. Please try again.';
-        $out['OC_LANG_SERVER_ERROR'] = defined('LANG_OPENCODE_SERVER_ERROR') ? LANG_OPENCODE_SERVER_ERROR : 'Invalid response from server';
-        $out['OC_LANG_UNKNOWN_ERROR'] = defined('LANG_OPENCODE_UNKNOWN_ERROR') ? LANG_OPENCODE_UNKNOWN_ERROR : 'Unknown error';
-        $out['OC_LANG_ERROR_PREFIX'] = defined('LANG_OPENCODE_ERROR_PREFIX') ? LANG_OPENCODE_ERROR_PREFIX : 'Error: ';
+        $out['OC_LANG_SEND'] = LANG_OPENCODE_SEND;
+        $out['OC_LANG_TYPING'] = LANG_OPENCODE_TYPING;
+        $out['OC_LANG_CLEAR_CONFIRM'] = LANG_OPENCODE_CLEAR_CONFIRM;
+        $out['OC_LANG_HISTORY_CLEARED'] = LANG_OPENCODE_HISTORY_CLEARED;
+        $out['OC_LANG_HOW_CAN_I_HELP'] = LANG_OPENCODE_HOW_CAN_I_HELP;
+        $out['OC_LANG_CONNECT_ERROR'] = LANG_OPENCODE_CONNECT_ERROR;
+        $out['OC_LANG_SERVER_ERROR'] = LANG_OPENCODE_SERVER_ERROR;
+        $out['OC_LANG_UNKNOWN_ERROR'] = LANG_OPENCODE_UNKNOWN_ERROR;
+        $out['OC_LANG_ERROR_PREFIX'] = LANG_OPENCODE_ERROR_PREFIX;
     }
 
     function getModelsCacheFile() {
