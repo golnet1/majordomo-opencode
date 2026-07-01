@@ -1012,6 +1012,7 @@ class opencode extends module {
             $this->syncServiceRestart();
         }
 
+        $this->getConfig();
         $config_file = $this->opencode_config_dir . '/opencode.jsonc';
         if (!file_exists($config_file)) {
             $this->config['OC_MCP_SERVERS'] = json_encode(array(
