@@ -1012,6 +1012,15 @@ class opencode extends module {
             $this->setupServiceDropin();
             $this->syncServiceRestart();
         }
+
+        $config_file = $this->opencode_config_dir . '/opencode.jsonc';
+        if (!file_exists($config_file)) {
+            $this->config['OC_MCP_SERVERS'] = json_encode(array(
+                array('name' => 'music', 'type' => 'local', 'command' => 'python3', 'args' => DIR_MODULES . 'opencode/mcp/mcp_music.py', 'enabled' => true)
+            ), JSON_UNESCAPED_SLASHES);
+            $this->saveConfig();
+            $this->writeOpencodeConfig();
+        }
     }
 
     function installPythonDeps() {
