@@ -712,7 +712,7 @@ class opencode extends module {
             $config['model'] = 'custom/' . $model_id;
         }
 
-        // MCP servers from config
+        // MCP always included for device control
         $mcp_servers_raw = $this->config['OC_MCP_SERVERS'];
         if ($mcp_servers_raw) {
             $mcp_servers = json_decode($mcp_servers_raw, true);
@@ -734,15 +734,6 @@ class opencode extends module {
                     }
                 }
             }
-        }
-
-        // Default music MCP server (if file exists)
-        $music_script = DIR_MODULES . 'opencode/mcp/mcp_music.py';
-        if (file_exists($music_script)) {
-            $config['mcp']['music'] = array(
-                'type' => 'local',
-                'command' => array($this->getMcpPython(), $music_script)
-            );
         }
 
         if ($this->config['OC_MAJORDOMO_MCP']) {
