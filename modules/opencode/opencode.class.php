@@ -276,7 +276,14 @@ class opencode extends module {
 
     function checkDependencies(&$health_result = null, $short_timeout = false) {
         $checks = array();
-        $checks['opencode_binary'] = file_exists($this->opencode_bin) ? 'ok' : 'missing';
+        $bin_found = file_exists($this->opencode_bin);
+        if (!$bin_found) {
+            $alt_paths = array('/usr/local/bin/opencode', '/usr/bin/opencode', '/root/.opencode/bin/opencode');
+            foreach ($alt_paths as $p) {
+                if (file_exists($p)) { $bin_found = true; $this->opencode_bin = $p; break; }
+            }
+        }
+        $checks['opencode_binary'] = $bin_found ? 'ok' : 'missing';
         if ($short_timeout) {
             $old_timeout = $this->config['OC_TIMEOUT'];
             $this->config['OC_TIMEOUT'] = 5;
@@ -910,7 +917,12 @@ class opencode extends module {
 
     function findOpencodeBinary() {
         $bin = trim(exec('command -v opencode 2>/dev/null'));
-        return $bin ?: '/usr/local/bin/opencode';
+        if ($bin && file_exists($bin)) return $bin;
+        $common_paths = array('/usr/local/bin/opencode', '/usr/bin/opencode', '/root/.opencode/bin/opencode');
+        foreach ($common_paths as $p) {
+            if (file_exists($p)) return $p;
+        }
+        return '/usr/local/bin/opencode';
     }
 
     function executeMajordomoCommand($command) {
@@ -985,45 +997,45 @@ class opencode extends module {
             @chgrp($tmpdir, 'www-data');
         }
 
-        echo '<div class="alert alert-info">Установка OpenCode binary...</div>';
-        @ob_flush(); flush();
+        if (!file_exists($this->opencode_bin)) {
+            $alt = array('/usr/local/bin/opencode', '/usr/bin/opencode', '/root/.opencode/bin/opencode');
+            foreach ($alt as $p) {
+                if (file_exists($p)) { $this->opencode_bin = $p; break; }
+            }
+        }
         if (!file_exists($this->opencode_bin)) {
             $this->installOpencodeBinary();
         }
-        echo '<div class="alert alert-success">OpenCode binary: OK</div>';
-        @ob_flush(); flush();
-
-        echo '<div class="alert alert-info">Установка Python-пакета mcp...</div>';
-        @ob_flush(); flush();
         $this->installPythonDeps();
-        echo '<div class="alert alert-success">Python-пакет mcp: OK</div>';
-        @ob_flush(); flush();
-
-        echo '<div class="alert alert-info">Настройка systemd сервиса...</div>';
-        @ob_flush(); flush();
-        $this->setupServiceDropin();
-        $this->syncServiceRestart();
-        echo '<div class="alert alert-success">Сервис opencode-web запущен</div>';
-        @ob_flush(); flush();
+        $service_active = trim(shell_exec('systemctl is-active opencode-web.service 2>/dev/null'));
+        if ($service_active !== 'active') {
+            $this->setupServiceDropin();
+            $this->syncServiceRestart();
+        }
     }
 
     function installPythonDeps() {
         $sudo = $this->isRoot() ? '' : 'sudo ';
         $errors = array();
-        $pip_cmd = trim(shell_exec('which pip3 2>/dev/null')) ?: trim(shell_exec('which pip 2>/dev/null')) ?: trim(shell_exec('command -v pip3 2>/dev/null')) ?: trim(shell_exec('command -v pip 2>/dev/null'));
-        if ($pip_cmd) {
-            exec("cd /tmp && {$sudo}{$pip_cmd} install mcp --ignore-installed rpds-py 2>&1", $output, $return_var);
-            if ($return_var !== 0) {
-                $msg = "pip install mcp failed: " . implode("\n", $output);
+
+        if ($this->checkPythonPackage('mcp')) {
+            DebMes("Opencode: mcp already available in system python, skipping pip install", 'opencode');
+        } else {
+            $pip_cmd = trim(shell_exec('which pip3 2>/dev/null')) ?: trim(shell_exec('which pip 2>/dev/null')) ?: trim(shell_exec('command -v pip3 2>/dev/null')) ?: trim(shell_exec('command -v pip 2>/dev/null'));
+            if ($pip_cmd) {
+                exec("cd /tmp && {$sudo}{$pip_cmd} install mcp --ignore-installed rpds-py 2>&1", $output, $return_var);
+                if ($return_var !== 0) {
+                    $msg = "pip install mcp failed: " . implode("\n", $output);
+                    DebMes("Opencode: " . $msg, 'opencode');
+                    $errors[] = $msg;
+                } else {
+                    DebMes("Opencode: mcp package installed successfully", 'opencode');
+                }
+            } else {
+                $msg = "pip3/pip not found";
                 DebMes("Opencode: " . $msg, 'opencode');
                 $errors[] = $msg;
-            } else {
-                DebMes("Opencode: mcp package installed successfully", 'opencode');
             }
-        } else {
-            $msg = "pip3/pip not found";
-            DebMes("Opencode: " . $msg, 'opencode');
-            $errors[] = $msg;
         }
         $venv_python = $this->findMcpVenvPython();
         if ($venv_python) {
