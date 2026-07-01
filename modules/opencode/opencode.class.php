@@ -538,13 +538,7 @@ class opencode extends module {
             $system_prompt = 'Ты — голосовой ассистент умного дома. Твоя задача — помогать пользователю управлять устройствами умного дома. У тебя есть доступ к MCP-инструментам для управления устройствами. Используй эти инструменты когда пользователь просит что-то сделать с устройствами. Для работы с файлами используй инструменты read/edit/write, а не bash-команды. Если инструмент недоступен, объясни почему. Отвечай кратко и по делу, как голосовой ассистент.';
         }
         $out['OC_SYSTEM_PROMPT'] = $system_prompt;
-        if ($this->config['OC_MCP_SERVERS']) {
-            $out['OC_MCP_SERVERS'] = $this->config['OC_MCP_SERVERS'];
-        } else {
-            $out['OC_MCP_SERVERS'] = json_encode(array(
-                array('name' => 'music', 'type' => 'local', 'command' => 'python3', 'args' => DIR_MODULES . 'opencode/mcp/mcp_music.py', 'enabled' => true)
-            ), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-        }
+        $out['OC_MCP_SERVERS'] = $this->config['OC_MCP_SERVERS'];
         $out['OC_PROVIDER_API_KEY'] = $this->config['OC_PROVIDER_API_KEY'];
         $out['OC_PROVIDER_ENDPOINT'] = $this->config['OC_PROVIDER_ENDPOINT'];
         $out['OC_PROVIDER_MODEL'] = $this->config['OC_PROVIDER_MODEL'];
