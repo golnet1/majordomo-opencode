@@ -864,6 +864,7 @@ class opencode extends module {
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . escapeshellarg($password) . "\n";
         }
         $content .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
+        $content .= "MemoryMax=768M\nMemoryHigh=512M\n";
         $override_dir = '/etc/systemd/system/opencode-web.service.d';
         $override_file = $override_dir . '/override.conf';
 
