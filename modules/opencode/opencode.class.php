@@ -468,6 +468,9 @@ class opencode extends module {
                 if ($old_full_access != $this->config['OC_FULL_ACCESS']) {
                     unset($this->config['OC_SESSION_ID']);
                 }
+                $this->config['OC_MEMORY_LIMIT'] = gr('oc_memory_limit') ? 1 : 0;
+                $this->config['OC_MEMORY_MAX'] = gr('oc_memory_max');
+                $this->config['OC_MEMORY_HIGH'] = gr('oc_memory_high');
             }
 
             unset($this->config['OC_REMOVED']);
@@ -574,6 +577,10 @@ class opencode extends module {
         }
         $out['OC_AUTH_LOGIN'] = $this->config['OC_AUTH_LOGIN'] ?: '';
         $out['OC_AUTH_PASSWORD'] = $this->config['OC_AUTH_PASSWORD'] ?: '';
+
+        $out['OC_MEMORY_LIMIT'] = isset($this->config['OC_MEMORY_LIMIT']) ? $this->config['OC_MEMORY_LIMIT'] : '0';
+        $out['OC_MEMORY_MAX'] = $this->config['OC_MEMORY_MAX'] ?: '768M';
+        $out['OC_MEMORY_HIGH'] = $this->config['OC_MEMORY_HIGH'] ?: '512M';
 
         $out['AVAILABLE_MODELS'] = $this->getAvailableModels();
 
@@ -864,7 +871,11 @@ class opencode extends module {
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . escapeshellarg($password) . "\n";
         }
         $content .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
-        $content .= "MemoryMax=768M\nMemoryHigh=512M\n";
+        if (!empty($this->config['OC_MEMORY_LIMIT'])) {
+            $mem_max = !empty($this->config['OC_MEMORY_MAX']) ? $this->config['OC_MEMORY_MAX'] : '768M';
+            $mem_high = !empty($this->config['OC_MEMORY_HIGH']) ? $this->config['OC_MEMORY_HIGH'] : '512M';
+            $content .= "MemoryMax={$mem_max}\nMemoryHigh={$mem_high}\n";
+        }
         $override_dir = '/etc/systemd/system/opencode-web.service.d';
         $override_file = $override_dir . '/override.conf';
 
