@@ -1,6 +1,0 @@
-node_modules/
-models_cache.json
-.DS_Store
-Thumbs.db
-__pycache__/
-*.pyc
