@@ -8,6 +8,7 @@ class opencode extends module {
     var $api_base = 'http://127.0.0.1:4096';
     var $api_user = 'opencode';
     var $api_pass = 'opencode';
+    var $last_error = '';
 
     function __construct() {
         $this->name = 'opencode';
@@ -27,8 +28,12 @@ class opencode extends module {
     }
 
     function restRequest($method, $path, $body = null, $timeout = 0) {
-        $port = $this->getApiPort();
-        $url = "http://127.0.0.1:{$port}{$path}";
+        if (!empty($this->config['OC_REMOTE_ENABLED']) && !empty($this->config['OC_REMOTE_URL'])) {
+            $url = rtrim($this->config['OC_REMOTE_URL'], '/') . $path;
+        } else {
+            $port = $this->getApiPort();
+            $url = "http://127.0.0.1:{$port}{$path}";
+        }
         $user = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
         $pass = !empty($this->config['OC_AUTH_PASSWORD']) ? $this->config['OC_AUTH_PASSWORD'] : 'opencode';
         $auth = base64_encode($user . ':' . $pass);
@@ -54,6 +59,7 @@ class opencode extends module {
         curl_close($ch);
         if ($error) {
             DebMes("Opencode REST error: {$error}", 'opencode');
+            $this->last_error = LANG_OPENCODE_CONNECT_ERROR . ': ' . $error;
             return null;
         }
         $decoded = json_decode($response, true);
@@ -77,6 +83,92 @@ class opencode extends module {
 
     function stripANSI($text) {
         return preg_replace('/\e\[[0-9;]*m/', '', $text);
+    }
+
+    function getLastError() {
+        return $this->last_error;
+    }
+
+    function getOpencodeVersion() {
+        if (!file_exists($this->opencode_bin)) return '';
+        $raw = trim((string)shell_exec(escapeshellarg($this->opencode_bin) . ' --version 2>/dev/null'));
+        return preg_match('/\d+\.\d+\.\d+/', $raw, $m) ? $m[0] : '';
+    }
+
+    function getCurrentVersion() {
+        $cached = isset($this->config['OC_RUNNING_VERSION']) ? trim((string)$this->config['OC_RUNNING_VERSION']) : '';
+        if ($cached !== '') return $cached;
+        $detected = $this->getOpencodeVersion();
+        if ($detected !== '') {
+            $this->config['OC_RUNNING_VERSION'] = $detected;
+            $this->saveConfig();
+        }
+        return $detected;
+    }
+
+    function getMinVersion() {
+        return isset($this->config['OC_MIN_VERSION']) ? trim((string)$this->config['OC_MIN_VERSION']) : '';
+    }
+
+    function isVersionOutdated() {
+        $min = $this->getMinVersion();
+        if ($min === '') return false;
+        $cur = $this->getCurrentVersion();
+        if ($cur === '') return false;
+        return version_compare($cur, $min) < 0;
+    }
+
+    function noteMinVersion($min) {
+        $min = trim((string)$min);
+        if ($min === '') return;
+        $cur = $this->getMinVersion();
+        if ($cur !== '' && version_compare($min, $cur, '<=')) return;
+        $this->config['OC_MIN_VERSION'] = $min;
+        $this->saveConfig();
+        DebMes("Opencode: minimum required version is now {$min}", 'opencode');
+    }
+
+    function noteRunningVersion($version) {
+        $version = trim((string)$version);
+        if ($version === '') return;
+        if (isset($this->config['OC_RUNNING_VERSION']) && $this->config['OC_RUNNING_VERSION'] === $version) return;
+        $this->config['OC_RUNNING_VERSION'] = $version;
+        $this->saveConfig();
+    }
+
+    function extractApiError($result) {
+        $err = array();
+        if (!empty($result['data']['info']['error'])) $err = $result['data']['info']['error'];
+        elseif (!empty($result['data']['error'])) $err = $result['data']['error'];
+        if (is_string($err)) {
+            $err = array('message' => $err);
+        }
+        if (!$err) return '';
+        if (isset($err['data']) && is_array($err['data'])) $err = $err['data'];
+        if (!is_array($err)) return '';
+
+        $msg = '';
+        if (isset($err['message'])) $msg = $err['message'];
+        elseif (isset($err['error']['message'])) $msg = $err['error']['message'];
+        $msg = trim($this->stripANSI((string)$msg));
+        if ($msg === '') return '';
+
+        $needs_upgrade = false;
+        if (isset($err['statusCode']) && (int)$err['statusCode'] === 426) $needs_upgrade = true;
+        if (preg_match('/OpenCode (\d+\.\d+\.\d+) or newer is required/i', $msg, $m)) {
+            $needs_upgrade = true;
+            $this->noteMinVersion($m[1]);
+        }
+
+        if ($needs_upgrade) {
+            $min = $this->getMinVersion();
+            $cur = $this->getCurrentVersion();
+            $this->last_error = LANG_OPENCODE_UPGRADE_REQUIRED . ' ' . $min
+                . ($cur !== '' ? ' (' . LANG_OPENCODE_VERSION_INSTALLED . ' ' . $cur . ')' : '') . '.';
+        } else {
+            $this->last_error = $msg;
+        }
+        return $msg;
     }
 
     function saveParams($data = 1) {
@@ -148,7 +240,7 @@ class opencode extends module {
             $details['BREAK'] = true;
             $details['PROCESSED'] = true;
         } else {
-            DebMes("Opencode: no response generated", 'opencode');
+            DebMes("Opencode: no response generated" . ($this->last_error ? ': ' . $this->last_error : ''), 'opencode');
         }
     }
 
@@ -184,14 +276,19 @@ class opencode extends module {
 
     function processWithOpencode($message, $timeout = 0) {
         $this->getConfig();
+        $this->last_error = '';
         $session_id = isset($this->config['OC_SESSION_ID']) ? $this->config['OC_SESSION_ID'] : '';
 
         if ($session_id) {
             $body = $this->buildMessageBody($message);
             $result = $this->restRequest('POST', "/session/{$session_id}/message", $body, $timeout);
             if ($result && $result['code'] === 200) {
-                DebMes("Opencode: reused session={$session_id}", 'opencode');
                 $this->saveTokensFromResponse($result);
+                if ($this->extractApiError($result) !== '') {
+                    DebMes("Opencode: reused session={$session_id} returned API error", 'opencode');
+                    return '';
+                }
+                DebMes("Opencode: reused session={$session_id}", 'opencode');
                 return $this->parseMessageResponse($result);
             }
             DebMes("Opencode: session expired or invalid, creating new one", 'opencode');
@@ -200,12 +297,17 @@ class opencode extends module {
 
         $result = $this->restRequest('POST', '/session', $this->buildSessionBody(), $timeout);
         if (!$result || $result['code'] !== 200) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (code=' . ($result ? $result['code'] : 'null') . ')';
             DebMes("Opencode: failed to create session (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
             return '';
+        }
+        if (!empty($result['data']['version'])) {
+            $this->noteRunningVersion($result['data']['version']);
         }
         $this->saveTokensFromResponse($result);
         $session_id = isset($result['data']['id']) ? $result['data']['id'] : '';
         if (!$session_id) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (no session id)';
             DebMes("Opencode: no session id in response", 'opencode');
             return '';
         }
@@ -217,10 +319,12 @@ class opencode extends module {
         $body = $this->buildMessageBody($message);
         $result = $this->restRequest('POST', "/session/{$session_id}/message", $body, $timeout);
         if (!$result || $result['code'] !== 200) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (code=' . ($result ? $result['code'] : 'null') . ')';
             DebMes("Opencode: failed to send message to new session", 'opencode');
             return '';
         }
         $this->saveTokensFromResponse($result);
+        if ($this->extractApiError($result) !== '') return '';
 
         return $this->parseMessageResponse($result);
     }
@@ -277,8 +381,7 @@ class opencode extends module {
         $checks = array();
         $bin_found = file_exists($this->opencode_bin);
         if (!$bin_found) {
-            $alt_paths = array('/usr/local/bin/opencode', '/usr/bin/opencode', '/root/.opencode/bin/opencode');
-            foreach ($alt_paths as $p) {
+            foreach ($this->getBinaryCandidates() as $p) {
                 if (file_exists($p)) { $bin_found = true; $this->opencode_bin = $p; break; }
             }
         }
@@ -299,73 +402,6 @@ class opencode extends module {
         global $session;
         $this->getConfig();
 
-        $ajax = gr('ajax');
-        if ($ajax) {
-            header('Content-Type: application/json; charset=utf-8');
-            $op = gr('op');
-            if ($op == 'send_message') {
-                $msg = gr('message');
-                if (!$msg) {
-                    echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_EMPTY_MESSAGE));
-                } else {
-                    $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
-                    $this->saveMessageToHistory($msg, 'user', $user_id);
-                    $placeholder_id = $this->saveMessageToHistory('…', 'assistant', $user_id);
-                    session_write_close();
-                    $bg = DIR_MODULES . 'opencode/background.php';
-                    $safe_msg = escapeshellarg($msg);
-                    exec("php $bg $placeholder_id $user_id $safe_msg > /dev/null 2>&1 &");
-                    ob_clean();
-                    echo json_encode(array('success' => true, 'processing' => true, 'message_id' => $placeholder_id));
-                    flush();
-                }
-            } elseif ($op == 'check_message') {
-                $msg_id = (int)gr('message_id');
-                if ($msg_id) {
-                    $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$msg_id'");
-                    if ($rec['ID']) {
-                        if ($rec['MESSAGE'] === '…') {
-                            echo json_encode(array('success' => true, 'processing' => true));
-                        } else {
-                            echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
-                        }
-                    } else {
-                    echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_MESSAGE_NOT_FOUND));
-                }
-            } else {
-                echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_NO_MESSAGE_ID));
-                }
-            } elseif ($op == 'clear_history') {
-                $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
-                SQLExec("DELETE FROM opencode_messages WHERE USER_ID='" . $user_id . "'");
-                echo json_encode(array('success' => true));
-            } elseif ($op == 'load_history') {
-                $user_id = (int)(isset($session->data['MEMBER']) ? $session->data['MEMBER'] : 1);
-                $messages = SQLSelect("SELECT * FROM opencode_messages WHERE USER_ID='" . $user_id . "' ORDER BY ID ASC");
-                echo json_encode(array('success' => true, 'messages' => $messages));
-            } elseif ($op == 'load_devices') {
-                echo json_encode(array('success' => true, 'devices' => array()));
-            } elseif ($op == 'check_status') {
-                $health = null;
-                $deps = $this->checkDependencies($health);
-                $model_name = $this->config['OC_PROVIDER_MODEL'] ?: ($this->config['OC_MODEL'] ?: 'opencode/big-pickle');
-                $mcp_result = $this->restRequest('GET', '/mcp');
-                $mcp_status = ($mcp_result && $mcp_result['code'] === 200 && is_array($mcp_result['data'])) ? $mcp_result['data'] : array();
-                echo json_encode(array(
-                    'success' => true,
-                    'api_ok' => ($deps['api'] === 'ok'),
-                    'binary_ok' => ($deps['opencode_binary'] === 'ok'),
-                    'sudo_ok' => $this->canSudo(),
-                    'model' => $model_name,
-                    'mcp' => $mcp_status
-                ));
-            } elseif ($op == 'refresh_models') {
-                $models = $this->getAvailableModels(true);
-                echo json_encode(array('success' => true, 'models' => $models));
-            }
-            exit;
-        }
-
         $is_post = ($_SERVER['REQUEST_METHOD'] === 'POST');
         if ($is_post) session_write_close();
 
@@ -377,8 +413,13 @@ class opencode extends module {
         }
 
         if ($deps['opencode_binary'] !== 'ok' && empty($this->config['OC_REMOVED'])) {
-            $this->installOpencodeBinary();
-            $deps = $this->checkDependencies($health, $is_post);
+            $last_attempt = (int)(isset($this->config['OC_INSTALL_ATTEMPT']) ? $this->config['OC_INSTALL_ATTEMPT'] : 0);
+            if ((time() - $last_attempt) >= 3600) {
+                $this->config['OC_INSTALL_ATTEMPT'] = time();
+                $this->saveConfig();
+                $this->installOpencodeBinary();
+                $deps = $this->checkDependencies($health, $is_post);
+            }
         }
 
         $api_ok = ($deps['api'] === 'ok');
@@ -396,6 +437,20 @@ class opencode extends module {
         $model_name = $this->config['OC_PROVIDER_ENDPOINT'] ? ($this->config['OC_PROVIDER_MODEL'] ?: $this->config['OC_MODEL']) : ($this->config['OC_MODEL'] ?: 'opencode/big-pickle');
         $out['DEPS_MODEL_COLOR'] = $api_ok ? '#5cb85c' : '#d9534f';
         $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : LANG_OPENCODE_NO_CONNECTION;
+
+        $cur_version = $this->getCurrentVersion();
+        $min_version = $this->getMinVersion();
+        $outdated = $this->isVersionOutdated();
+        $out['OC_VERSION_CURRENT'] = $cur_version !== '' ? $cur_version : '?';
+        $out['OC_VERSION_MIN'] = $min_version !== '' ? $min_version : '?';
+        $out['OC_VERSION_OUTDATED'] = $outdated ? '1' : '0';
+        $out['OC_VERSION_BADGE_COLOR'] = $outdated ? '#d9534f' : '#5cb85c';
+        $out['OC_VERSION_BADGE_VISIBLE'] = $outdated ? '' : 'style="display:none"';
+        $out['OC_VERSION_ROW_VISIBLE'] = $cur_version !== '' ? '' : 'style="display:none"';
+        $out['OC_UPGRADE_BTN_VISIBLE'] = ($outdated && $binary_ok) ? '' : 'style="display:none"';
+        $out['UPGRADE_RESULT_VISIBLE'] = 'style="display:none"';
+        $out['UPGRADE_RESULT'] = '';
+        $out['UPGRADE_RESULT_CLASS'] = 'alert-info';
 
         $mcp_installed = is_dir(DIR_MODULES . 'mcp');
         $mcp_python_ok = $this->checkPythonPackage('mcp');
@@ -471,6 +526,9 @@ class opencode extends module {
                 $this->config['OC_MEMORY_LIMIT'] = gr('oc_memory_limit') ? 1 : 0;
                 $this->config['OC_MEMORY_MAX'] = gr('oc_memory_max');
                 $this->config['OC_MEMORY_HIGH'] = gr('oc_memory_high');
+                $this->config['OC_MIN_RAM_MB'] = (int)gr('oc_min_ram_mb');
+                $this->config['OC_REMOTE_ENABLED'] = gr('oc_remote_enabled') ? 1 : 0;
+                $this->config['OC_REMOTE_URL'] = gr('oc_remote_url');
             }
 
             unset($this->config['OC_REMOVED']);
@@ -515,6 +573,18 @@ class opencode extends module {
             $this->saveConfig();
         } else {
             unset($this->config['OC_RESTARTED']);
+        }
+
+        if ($this->view_mode == 'upgrade_opencode') {
+            $upgrade = $this->upgradeOpencode();
+            $out['UPGRADE_RESULT'] = htmlspecialchars($upgrade['message'], ENT_QUOTES, 'UTF-8');
+            $out['UPGRADE_RESULT_CLASS'] = $upgrade['ok'] ? 'alert-success' : 'alert-danger';
+            $out['UPGRADE_RESULT_VISIBLE'] = '';
+            $out['OC_VERSION_OUTDATED'] = $this->isVersionOutdated() ? '1' : '0';
+            $out['OC_VERSION_CURRENT'] = $this->getCurrentVersion() ?: '?';
+            $out['OC_VERSION_BADGE_COLOR'] = $out['OC_VERSION_OUTDATED'] === '1' ? '#d9534f' : '#5cb85c';
+            $out['OC_VERSION_BADGE_VISIBLE'] = $out['OC_VERSION_OUTDATED'] === '1' ? '' : 'style="display:none"';
+            $out['OC_UPGRADE_BTN_VISIBLE'] = ($out['OC_VERSION_OUTDATED'] === '1' && $binary_ok) ? '' : 'style="display:none"';
         }
 
         if ($this->view_mode == 'toggle_opencode') {
@@ -581,6 +651,10 @@ class opencode extends module {
         $out['OC_MEMORY_LIMIT'] = isset($this->config['OC_MEMORY_LIMIT']) ? $this->config['OC_MEMORY_LIMIT'] : '0';
         $out['OC_MEMORY_MAX'] = $this->config['OC_MEMORY_MAX'] ?: '768M';
         $out['OC_MEMORY_HIGH'] = $this->config['OC_MEMORY_HIGH'] ?: '512M';
+        $out['OC_MIN_RAM_MB'] = $this->getMinRamMb();
+        $out['OC_REMOTE_ENABLED'] = isset($this->config['OC_REMOTE_ENABLED']) ? $this->config['OC_REMOTE_ENABLED'] : '0';
+        $out['OC_REMOTE_URL'] = $this->config['OC_REMOTE_URL'] ?: '';
+        $out['OC_REMOTE_VISIBLE'] = (!empty($this->config['OC_REMOTE_ENABLED'])) ? '' : 'style="display:none"';
 
         $out['AVAILABLE_MODELS'] = $this->getAvailableModels();
 
@@ -618,7 +692,11 @@ class opencode extends module {
             $host = '127.0.0.1';
         }
         $out['OC_WEB_URL'] = "{$scheme}://{$host}:{$port}";
-        $out['OC_API_URL'] = "http://127.0.0.1:{$port}";
+        $api_url = "http://127.0.0.1:{$port}";
+        if (!empty($this->config['OC_REMOTE_ENABLED']) && !empty($this->config['OC_REMOTE_URL'])) {
+            $api_url = rtrim($this->config['OC_REMOTE_URL'], '/');
+        }
+        $out['OC_API_URL'] = $api_url;
 
         $out['OC_LANG_SEND'] = LANG_OPENCODE_SEND;
         $out['OC_LANG_TYPING'] = LANG_OPENCODE_TYPING;
@@ -705,7 +783,7 @@ class opencode extends module {
                 'models' => array(
                     $model_id => array(
                         'name' => $model_id,
-                        'tool_call' => false
+                        'tool_call' => true
                     )
                 )
             );
@@ -813,10 +891,17 @@ class opencode extends module {
         return function_exists('posix_getuid') && posix_getuid() === 0;
     }
 
-    function canSudo() {
+    function canSudo($max_age = 3600) {
+        $ts = isset($this->config['OC_SUDO_CHECK_TS']) ? (int)$this->config['OC_SUDO_CHECK_TS'] : 0;
+        $val = isset($this->config['OC_SUDO_OK']) ? (int)$this->config['OC_SUDO_OK'] : 0;
+        if ($ts > 0 && (time() - $ts) < $max_age) return $val === 1;
         $sudo = $this->isRoot() ? '' : 'sudo ';
         exec($sudo . 'id 2>&1', $out, $rc);
-        return $rc === 0;
+        $ok = ($rc === 0);
+        $this->config['OC_SUDO_CHECK_TS'] = time();
+        $this->config['OC_SUDO_OK'] = $ok ? 1 : 0;
+        $this->saveConfig();
+        return $ok;
     }
 
     function isPortAvailable($port) {
@@ -831,6 +916,20 @@ class opencode extends module {
         if (!$has_listen) return true;
         if (strpos($listening, 'opencode') !== false) return true;
         return false;
+    }
+
+    function systemdEnvValue($value) {
+        return '"' . str_replace(array('\\', '"', "\n"), array('\\\\', '\\"', ''), (string)$value) . '"';
+    }
+
+    function sanitizeMemoryValue($value, $default) {
+        $value = trim((string)$value);
+        if ($value === '') return $default;
+        if (!preg_match('/^\d+[KMGT]?$/', $value)) {
+            DebMes("Opencode: rejected invalid memory value '{$value}', using {$default}", 'opencode');
+            return $default;
+        }
+        return $value;
     }
 
     function setupServiceDropin() {
@@ -867,13 +966,13 @@ class opencode extends module {
         if (!empty($this->config['OC_AUTH_ENABLED'])) {
             $login = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
             $password = !empty($this->config['OC_AUTH_PASSWORD']) ? $this->config['OC_AUTH_PASSWORD'] : 'opencode';
-            $content .= "Environment=OPENCODE_SERVER_USERNAME=" . escapeshellarg($login) . "\n";
-            $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . escapeshellarg($password) . "\n";
+            $content .= "Environment=OPENCODE_SERVER_USERNAME=" . $this->systemdEnvValue($login) . "\n";
+            $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . $this->systemdEnvValue($password) . "\n";
         }
         $content .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
         if (!empty($this->config['OC_MEMORY_LIMIT'])) {
-            $mem_max = !empty($this->config['OC_MEMORY_MAX']) ? $this->config['OC_MEMORY_MAX'] : '768M';
-            $mem_high = !empty($this->config['OC_MEMORY_HIGH']) ? $this->config['OC_MEMORY_HIGH'] : '512M';
+            $mem_max = $this->sanitizeMemoryValue($this->config['OC_MEMORY_MAX'], '768M');
+            $mem_high = $this->sanitizeMemoryValue($this->config['OC_MEMORY_HIGH'], '512M');
             $content .= "MemoryMax={$mem_max}\nMemoryHigh={$mem_high}\n";
         }
         $override_dir = '/etc/systemd/system/opencode-web.service.d';
@@ -926,11 +1025,14 @@ class opencode extends module {
         }
     }
 
+    function getBinaryCandidates() {
+        return array('/usr/local/bin/opencode', '/usr/bin/opencode');
+    }
+
     function findOpencodeBinary() {
         $bin = trim(exec('command -v opencode 2>/dev/null'));
         if ($bin && file_exists($bin)) return $bin;
-        $common_paths = array('/usr/local/bin/opencode', '/usr/bin/opencode', '/root/.opencode/bin/opencode');
-        foreach ($common_paths as $p) {
+        foreach ($this->getBinaryCandidates() as $p) {
             if (file_exists($p)) return $p;
         }
         return '/usr/local/bin/opencode';
@@ -964,10 +1066,13 @@ class opencode extends module {
     }
 
     function processDeviceCommands($text) {
-        if (preg_match_all('/\[EXEC:([^\]]+)\]/i', $text, $matches)) {
-            foreach ($matches[1] as $cmd) {
-                $this->executeMajordomoCommand($cmd);
-            }
+        if (!preg_match_all('/\[EXEC:([^\]]+)\]/i', $text, $matches)) return;
+        if (empty($this->config['OC_FULL_ACCESS'])) {
+            DebMes("Opencode: [EXEC:] ignored, full access is disabled: " . substr(trim($matches[1][0]), 0, 100), 'opencode');
+            return;
+        }
+        foreach ($matches[1] as $cmd) {
+            $this->executeMajordomoCommand($cmd);
         }
     }
 
@@ -982,21 +1087,49 @@ class opencode extends module {
     }
 
     function processCycle() {
-        $max_history = $this->config['OC_MAX_HISTORY'] ? $this->config['OC_MAX_HISTORY'] : 50;
-        $old_records = SQLSelect("SELECT ID FROM opencode_messages WHERE ID NOT IN (SELECT ID FROM opencode_messages ORDER BY ID DESC LIMIT {$max_history})");
-        foreach ($old_records as $rec) {
-            SQLExec("DELETE FROM opencode_messages WHERE ID='" . $rec['ID'] . "'");
+        $max_history = isset($this->config['OC_MAX_HISTORY']) ? (int)$this->config['OC_MAX_HISTORY'] : 50;
+        if ($max_history < 1) return 0;
+        if ($max_history > 100000) $max_history = 100000;
+
+        $total_rec = SQLSelectOne("SELECT COUNT(*) AS CNT FROM opencode_messages");
+        $total = isset($total_rec['CNT']) ? (int)$total_rec['CNT'] : 0;
+        $excess = $total - $max_history;
+        if ($excess <= 0) return 0;
+
+        $batch = ($excess > 1000) ? 1000 : $excess;
+        $old_ids = SQLSelect("SELECT ID FROM opencode_messages ORDER BY ID ASC LIMIT {$batch}");
+        if (!$old_ids) return 0;
+
+        $id_list = array();
+        foreach ($old_ids as $rec) {
+            $id_list[] = (int)$rec['ID'];
         }
+        SQLExec("DELETE FROM opencode_messages WHERE ID IN (" . implode(',', $id_list) . ")");
+        DebMes("Opencode: pruned " . count($id_list) . " old messages (keep {$max_history})", 'opencode');
+        return count($id_list);
+    }
+
+    function getMinRamMb() {
+        $mb = isset($this->config['OC_MIN_RAM_MB']) ? (int)$this->config['OC_MIN_RAM_MB'] : 3600;
+        if ($mb < 0) $mb = 3600;
+        if ($mb > 1048576) $mb = 1048576;
+        return $mb;
     }
 
     function install($parent_name = '') {
         $arch = trim(shell_exec('uname -m'));
-        if (preg_match('/^(i[3456]86|armv[567]l)$/', $arch)) {
-            DebMes("OPENCODE INSTALL ERROR: 32-bit system detected ({$arch})", 'opencode');
-            register_shutdown_function(function() {
-                echo '<div class="alert alert-danger">' . LANG_OPENCODE_INSTALL_ARCH_ERROR . '</div>';
-            });
-            return false;
+        $mem_kb = (int)trim(shell_exec("grep MemTotal /proc/meminfo | awk '{print \$2}'"));
+        $is_64bit = !preg_match('/^(i[3456]86|armv[567]l)$/', $arch);
+        $min_ram_mb = $this->getMinRamMb();
+        $min_ram_kb = $min_ram_mb * 1024;
+        $big_mem = ($min_ram_mb <= 0) || ($mem_kb > $min_ram_kb);
+        $install_web = $is_64bit && $big_mem;
+
+        if (!$is_64bit) {
+            DebMes("Opencode install: 32-bit arch ({$arch}), skipping opencode web", 'opencode');
+        }
+        if (!$big_mem) {
+            DebMes("Opencode install: total RAM {$mem_kb} kB <= {$min_ram_mb} MB, skipping opencode web", 'opencode');
         }
 
         parent::install($parent_name);
@@ -1008,9 +1141,14 @@ class opencode extends module {
             @chgrp($tmpdir, 'www-data');
         }
 
+        if (!$install_web) {
+            DebMes("Opencode install: module-only mode, skipping binary and service setup", 'opencode');
+            $this->getConfig();
+            return true;
+        }
+
         if (!file_exists($this->opencode_bin)) {
-            $alt = array('/usr/local/bin/opencode', '/usr/bin/opencode', '/root/.opencode/bin/opencode');
-            foreach ($alt as $p) {
+            foreach ($this->getBinaryCandidates() as $p) {
                 if (file_exists($p)) { $this->opencode_bin = $p; break; }
             }
         }
@@ -1129,9 +1267,85 @@ class opencode extends module {
             $this->opencode_bin = $new_bin;
             DebMes("Opencode binary found at: " . $this->opencode_bin, 'opencode');
             exec("{$sudo}chmod 755 " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
+            unset($this->config['OC_INSTALL_ATTEMPT']);
+            $this->saveConfig();
         } else {
             DebMes("Opencode installation failed", 'opencode');
         }
+    }
+
+    function cleanNpmUpgradeLeftovers() {
+        $sudo = $this->isRoot() ? '' : 'sudo ';
+        $stale = array();
+        foreach (array('/usr/local/lib/node_modules', '/usr/lib/node_modules') as $modules_dir) {
+            $cmd = $sudo . 'find ' . escapeshellarg($modules_dir) . ' -maxdepth 1 -name ".opencode-ai-*" 2>/dev/null';
+            exec($cmd, $stale);
+        }
+        foreach ($stale as $path) {
+            $path = trim($path);
+            if ($path === '' || !file_exists($path)) continue;
+            DebMes("Opencode: removing stale npm temp dir {$path}", 'opencode');
+            exec($sudo . 'rm -rf ' . escapeshellarg($path));
+        }
+    }
+
+    function upgradeOpencode($target = '') {
+        $sudo = $this->isRoot() ? '' : 'sudo ';
+
+        if (!file_exists($this->opencode_bin)) {
+            $this->installOpencodeBinary();
+            $this->opencode_bin = $this->findOpencodeBinary();
+            if (!file_exists($this->opencode_bin)) {
+                return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . LANG_OPENCODE_UPGRADE_NO_BINARY);
+            }
+        }
+
+        $this->cleanNpmUpgradeLeftovers();
+
+        $old_version = $this->getOpencodeVersion();
+
+        $cmd = escapeshellarg($this->opencode_bin) . ' upgrade';
+        if ($target !== '') $cmd .= ' ' . escapeshellarg($target);
+        $cmd .= ' --method npm 2>&1';
+
+        DebMes("Opencode: running '{$sudo}{$cmd}'", 'opencode');
+        $output = array();
+        $return_var = 0;
+        exec($sudo . $cmd, $output, $return_var);
+        $log = $this->stripANSI(trim(implode("\n", $output)));
+        DebMes("Opencode upgrade output: " . substr($log, -500), 'opencode');
+
+        // 'opencode upgrade' returns 0 even when the underlying npm install failed,
+        // so the output has to be inspected as well.
+        $markers = array('Upgrade failed', 'failed for', 'npm ERR!', 'ENOTEMPTY', 'EEXIST');
+        $failed = ($return_var !== 0);
+        foreach ($markers as $marker) {
+            if (stripos($log, $marker) !== false) $failed = true;
+        }
+        if ($failed) {
+            $this->cleanNpmUpgradeLeftovers();
+            return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . $this->stripANSI(substr($log, -200)));
+        }
+
+        $this->opencode_bin = $this->findOpencodeBinary();
+        $new_version = $this->getOpencodeVersion();
+
+        if ($old_version !== '' && $new_version === $old_version) {
+            return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . LANG_OPENCODE_UPGRADE_NO_CHANGE . ' ' . $old_version);
+        }
+
+        $this->config['OC_RUNNING_VERSION'] = $new_version;
+        unset($this->config['OC_SESSION_ID'], $this->config['OC_SESSION_TOKENS'], $this->config['OC_SESSION_COST'], $this->config['OC_INSTALL_ATTEMPT']);
+        $this->saveConfig();
+
+        $this->setupServiceDropin();
+        $this->syncServiceRestart();
+
+        $min = $this->getMinVersion();
+        $still_old = ($min !== '' && $new_version !== '' && version_compare($new_version, $min) < 0);
+        $msg = LANG_OPENCODE_UPGRADE_DONE . ' ' . ($new_version !== '' ? $new_version : '?');
+        if ($still_old) $msg .= '. ' . LANG_OPENCODE_UPGRADE_REQUIRED . ' ' . $min;
+        return array('ok' => !$still_old, 'message' => $msg);
     }
 
     function removeOpencode() {

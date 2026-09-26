@@ -11,9 +11,12 @@
             <span id="oc_deps_sudo_label" style="vertical-align:middle;">Sudo ([#DEPS_SUDO_LABEL#])</span>
             <span id="oc_deps_model" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_MODEL_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
             <span id="oc_deps_model_label" style="vertical-align:middle;">[#DEPS_MODEL_LABEL#]</span>
+            <span id="oc_version_badge" [#OC_VERSION_ROW_VISIBLE#] style="margin-left:10px;padding:1px 8px;border-radius:10px;background:[#OC_VERSION_BADGE_COLOR#];color:#fff;font-size:12px;vertical-align:middle;">v[#OC_VERSION_CURRENT#]</span>
         </span>
     </h3>
     <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;align-items:center;">
+        <a [#OC_UPGRADE_BTN_VISIBLE#] href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=upgrade_opencode" class="btn btn-danger btn-sm" title="<#LANG_OPENCODE_UPGRADE_BTN_HELP#>">
+           <span class="glyphicon glyphicon-arrow-up"></span> <#LANG_OPENCODE_UPGRADE#></a>
         <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=restart_opencode" class="btn btn-warning btn-sm" title="<#LANG_OPENCODE_RESTART_SERVICE_HELP#>">
            <span class="glyphicon glyphicon-refresh"></span> <#LANG_OPENCODE_RESTART_SERVICE#></a>
         [#if DEPS_BINARY_LABEL="OK"#]
@@ -44,13 +47,19 @@
     <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
     <div id="oc_mcp_pkg_warning" [#if OC_MCP_PYTHON_OK!="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-warning">
         <#LANG_OPENCODE_MCP_PKG_WARNING#>
-        <button class="btn btn-xs btn-success" onclick="ocInstallMcpPkg()" style="margin-left:10px;">
+        <button class="btn btn-xs btn-success" onclick="ocInstallMcpPkg(this)" style="margin-left:10px;">
             <span class="glyphicon glyphicon-download-alt"></span> <#LANG_OPENCODE_INSTALL#>
         </button>
     </div>
     <div [#if PORT_BUSY="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_PORT_BUSY#></div>
     <div [#SESSION_CLEARED_VISIBLE#] class="alert alert-info"><#LANG_OPENCODE_SESSION_CLEARED#></div>
     <div [#if OC_RESTARTED="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-info"><#LANG_OPENCODE_RESTARTED#></div>
+    <div [#UPGRADE_RESULT_VISIBLE#] class="alert [#UPGRADE_RESULT_CLASS#]">[#UPGRADE_RESULT#]</div>
+    <div id="oc_version_warning" [#if OC_VERSION_OUTDATED="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-warning">
+        <#LANG_OPENCODE_VERSION_OUTDATED#>
+        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=upgrade_opencode" class="btn btn-xs btn-danger" style="margin-left:10px;" title="<#LANG_OPENCODE_UPGRADE_BTN_HELP#>" onclick="return confirm('<#LANG_OPENCODE_ARE_YOU_SURE#>')">
+            <span class="glyphicon glyphicon-arrow-up"></span> <#LANG_OPENCODE_UPGRADE#></a>
+    </div>
 
     [#if TAB_SETTINGS="1" || TAB_SERVER="1"#]
 
@@ -86,7 +95,7 @@
                                 </select>
                                 <span class="help-block"><#LANG_OPENCODE_CUSTOM_MODEL#></span>
                                 <input type="text" name="oc_model_custom" class="form-control" placeholder="<#LANG_OPENCODE_CUSTOM_MODEL_PLACEHOLDER#>" value="[#OC_MODEL#]">
-                                <button type="button" class="btn btn-xs btn-default" onclick="ocRefreshModels()"><#LANG_OPENCODE_REFRESH_MODELS#></button>
+                                <button type="button" class="btn btn-xs btn-default" onclick="ocRefreshModels(this)"><#LANG_OPENCODE_REFRESH_MODELS#></button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -312,6 +321,13 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_MIN_RAM_MB#></label>
+                            <div class="col-md-3">
+                                <input type="number" min="0" name="oc_min_ram_mb" class="form-control" value="[#OC_MIN_RAM_MB#]">
+                            </div>
+                            <div class="col-md-6"><small class="text-muted"><#LANG_OPENCODE_MIN_RAM_MB_HELP#></small></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -345,6 +361,7 @@
                     <div class="panel-body">
                         <p class="text-muted">
                             <strong><#LANG_OPENCODE_BINARY_PATH#>:</strong> /usr/local/bin/opencode<br>
+                            <span [#OC_VERSION_ROW_VISIBLE#]><strong><#LANG_OPENCODE_VERSION#>:</strong> [#OC_VERSION_CURRENT#] &nbsp;<span id="oc_version_diag" [#OC_VERSION_BADGE_VISIBLE#] class="label" style="background:[#OC_VERSION_BADGE_COLOR#];"><#LANG_OPENCODE_VERSION_REQUIRED#> [#OC_VERSION_MIN#]</span><br></span>
                             <strong><#LANG_OPENCODE_CONFIG_PATH#>:</strong> /var/www/.config/opencode/opencode.jsonc<br>
                             <strong><#LANG_OPENCODE_API_ENDPOINT_NAME#>:</strong> [#OC_API_URL#]<br>
                             <strong><#LANG_OPENCODE_SESSION_ID_LABEL#>:</strong> [#OC_SESSION_ID#]
@@ -385,18 +402,18 @@
 
     [#if TAB_CHAT="1"#]
 
-    <div id="oc_chat_container">
-        <div id="ocMessages"></div>
-        <div id="ocInputArea">
-            <form onsubmit="return ocSendMessage()" style="display:flex;gap:5px;width:50%;">
+    <div class="opencode-container">
+        <div class="opencode-input">
+            <form onsubmit="return ocSendMessage()" class="oc-input-form">
                 <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_MESSAGE_PLACEHOLDER#>">
                 <button id="ocSendBtn" class="btn btn-primary" type="submit"><#LANG_OPENCODE_SEND#></button>
                 <button type="button" onclick="ocClearHistory()" class="btn btn-danger"><#LANG_OPENCODE_CLEAR_HISTORY#></button>
             </form>
         </div>
+        <div class="opencode-messages" id="ocMessages"></div>
     </div>
 
-    <link rel="stylesheet" href="templates/opencode/css/opencode.css?v=2">
+    <link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=5">
     <script>
 var ocLang = {
     send: '<#OC_LANG_SEND#>',
@@ -410,7 +427,7 @@ var ocLang = {
     errorPrefix: '<#OC_LANG_ERROR_PREFIX#>'
 };
 </script>
-    <script src="templates/opencode/js/opencode.js?v=2"></script>
+    <script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=4"></script>
 
     [#endif#]
 
@@ -421,8 +438,7 @@ var ocLang = {
 [#inc about.html#]
 
 <script>
-function ocRefreshModels() {
-    var btn = event.target;
+function ocRefreshModels(btn) {
     btn.disabled = true;
     btn.textContent = '<#LANG_OPENCODE_REFRESHING#>';
     var xhr = new XMLHttpRequest();
@@ -510,6 +526,29 @@ function ocUpdateStatus() {
             el = document.getElementById('oc_deps_model'); if (el) el.style.background = modelColor;
             el = document.getElementById('oc_deps_model_label'); if (el) el.textContent = r.api_ok ? r.model : '<#LANG_OPENCODE_NO_CONNECTION#>';
             el = document.getElementById('oc_deps_sudo_label'); if (el) el.textContent = r.sudo_ok ? '<#LANG_OPENCODE_SUDO_OK#>' : '<#LANG_OPENCODE_SUDO_NO#>';
+            var vColor = r.outdated ? red : green;
+            el = document.getElementById('oc_version_badge');
+            if (el) {
+                if (r.version) {
+                    el.style.display = '';
+                    el.style.background = vColor;
+                    el.textContent = 'v' + r.version + (r.outdated ? ' → ' + r.min_version : '');
+                } else {
+                    el.style.display = 'none';
+                }
+            }
+            el = document.getElementById('oc_version_diag');
+            if (el) {
+                if (r.outdated) {
+                    el.style.display = '';
+                    el.style.background = red;
+                    el.textContent = '<#LANG_OPENCODE_VERSION_REQUIRED#> ' + r.min_version;
+                } else {
+                    el.style.display = 'none';
+                }
+            }
+            el = document.getElementById('oc_version_warning');
+            if (el) el.style.display = r.outdated ? 'block' : 'none';
             var mc = document.getElementById('oc_mcp_status_list');
             var mr = document.getElementById('oc_mcp_status_row');
             if (mc && mr) {
@@ -552,8 +591,7 @@ function ocUpdateStatus() {
     };
     xhr.send();
 }
-function ocInstallMcpPkg() {
-    var btn = event.target;
+function ocInstallMcpPkg(btn) {
     btn.disabled = true;
     btn.textContent = '<#LANG_OPENCODE_INSTALLING#>';
     var xhr = new XMLHttpRequest();

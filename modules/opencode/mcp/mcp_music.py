@@ -1,10 +1,10 @@
-import sys, os, json, hashlib, urllib.request, urllib.parse, re, html
+import sys, os, json, hashlib, urllib.request, urllib.parse, urllib.error
 
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("music")
 
-ZAYCEV_STATIC_KEY = os.environ.get("ZAYCEV_KEY", "kmskoNkYHDnl3ol2")
+ZAYCEV_STATIC_KEY = os.environ.get("ZAYCEV_KEY", "")
 ZAYCEV_ACCESS_TOKEN = None
 LASTFM_API_KEY = os.environ.get("LASTFM_KEY", "")
 VK_TOKEN = os.environ.get("VK_TOKEN", "")
@@ -29,6 +29,8 @@ def fetch_text(url, timeout=15):
 
 def zaycev_auth():
     global ZAYCEV_ACCESS_TOKEN
+    if not ZAYCEV_STATIC_KEY:
+        raise RuntimeError("ZAYCEV_KEY is not set")
     if ZAYCEV_ACCESS_TOKEN:
         return ZAYCEV_ACCESS_TOKEN
     data = fetch_json("https://api.zaycev.net/external/hello")
@@ -122,12 +124,15 @@ def vk_search(query: str, limit: int = 5):
 def search_music(query: str, artist: str = "") -> str:
     if artist:
         query = f"{artist} {query}"
-    sources = [
-        ("Zaycev.net", zaycev_search),
-        ("Last.fm", lastfm_search),
-    ]
+    sources = []
+    if ZAYCEV_STATIC_KEY:
+        sources.append(("Zaycev.net", zaycev_search))
+    if LASTFM_API_KEY:
+        sources.append(("Last.fm", lastfm_search))
     if VK_TOKEN:
         sources.append(("VK", vk_search))
+    if not sources:
+        return "Ничего не найдено: не заданы ключи ZAYCEV_KEY, LASTFM_KEY или VK_TOKEN."
     all_results = []
     errors = []
     used_sources = []

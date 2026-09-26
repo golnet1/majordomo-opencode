@@ -1,15 +1,15 @@
-<div id="oc_chat_container" style="margin:10px;min-height:300px;">
-    <div id="ocMessages"></div>
-    <div id="ocInputArea">
-        <form onsubmit="return ocSendMessage()" style="display:flex;gap:5px;width:50%;">
+<div class="opencode-container">
+    <div class="opencode-input">
+        <form onsubmit="return ocSendMessage()" class="oc-input-form">
             <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_MESSAGE_PLACEHOLDER#>">
             <button id="ocSendBtn" class="btn btn-primary" type="submit"><#LANG_OPENCODE_SEND#></button>
             <button type="button" onclick="ocClearHistory()" class="btn btn-danger"><#LANG_OPENCODE_CLEAR_HISTORY#></button>
         </form>
     </div>
+    <div class="opencode-messages" id="ocMessages"></div>
 </div>
 
-<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=2">
+<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=5">
 <script>
 var ocLang = {
     send: '<#LANG_OPENCODE_SEND#>',
@@ -23,4 +23,4 @@ var ocLang = {
     errorPrefix: '<#LANG_OPENCODE_ERROR_PREFIX#>'
 };
 </script>
-<script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=2"></script>
+<script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=4"></script>

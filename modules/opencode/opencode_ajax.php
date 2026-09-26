@@ -18,7 +18,7 @@ $op = gr('op');
 if ($op == 'send_message') {
     $msg = gr('message');
     if (!$msg) {
-        echo json_encode(array('success' => false, 'error' => 'Пустое сообщение'));
+        echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_EMPTY_MESSAGE));
         exit;
     }
     $m->saveMessageToHistory($msg, 'user', $user_id);
@@ -34,7 +34,7 @@ if ($op == 'send_message') {
 } elseif ($op == 'check_message') {
     $msg_id = (int)gr('message_id');
     if ($msg_id) {
-        $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$msg_id'");
+        $rec = SQLSelectOne("SELECT * FROM opencode_messages WHERE ID='$msg_id' AND USER_ID='$user_id'");
         if ($rec['ID']) {
             if ($rec['MESSAGE'] === '…') {
                 echo json_encode(array('success' => true, 'processing' => true));
@@ -51,7 +51,7 @@ if ($op == 'send_message') {
     SQLExec("DELETE FROM opencode_messages WHERE USER_ID='" . $user_id . "'");
     echo json_encode(array('success' => true));
 } elseif ($op == 'load_history') {
-    $messages = SQLSelect("SELECT * FROM opencode_messages WHERE USER_ID='" . $user_id . "' ORDER BY ID ASC");
+    $messages = SQLSelect("SELECT * FROM opencode_messages WHERE USER_ID='" . $user_id . "' ORDER BY ID DESC");
     echo json_encode(array('success' => true, 'messages' => $messages));
 } elseif ($op == 'load_devices') {
     echo json_encode(array('success' => true, 'devices' => array()));
@@ -71,7 +71,10 @@ if ($op == 'send_message') {
         'sudo_ok' => $m->canSudo(),
         'model' => $model_name,
         'mcp' => $mcp_status,
-        'mcp_python_ok' => $m->checkPythonPackage('mcp')
+        'mcp_python_ok' => $m->checkPythonPackage('mcp'),
+        'version' => $m->getCurrentVersion(),
+        'min_version' => $m->getMinVersion(),
+        'outdated' => $m->isVersionOutdated()
     ));
 } elseif ($op == 'install_mcp_package') {
     ob_clean();
@@ -134,6 +137,4 @@ if ($op == 'send_message') {
 } else {
     echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_UNKNOWN_OPERATION));
 }
-
-$session->save();
 

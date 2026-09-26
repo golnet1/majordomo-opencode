@@ -127,9 +127,9 @@ function ocAddMessage(role, text) {
     content.appendChild(textDiv);
     div.appendChild(avatar);
     div.appendChild(content);
-    container.appendChild(div);
+    container.insertBefore(div, container.firstChild);
 
-    ocScrollToBottom();
+    ocScrollToTop();
 }
 
 function ocShowTyping() {
@@ -148,8 +148,8 @@ function ocShowTyping() {
 
     div.appendChild(avatar);
     div.appendChild(content);
-    container.appendChild(div);
-    ocScrollToBottom();
+    container.insertBefore(div, container.firstChild);
+    ocScrollToTop();
 }
 
 function ocHideTyping() {
@@ -157,9 +157,9 @@ function ocHideTyping() {
     if (typing) typing.remove();
 }
 
-function ocScrollToBottom() {
+function ocScrollToTop() {
     var container = document.getElementById('ocMessages');
-    container.scrollTop = container.scrollHeight;
+    if (container) container.scrollTop = 0;
 }
 
 function ocClearHistory() {
@@ -190,7 +190,9 @@ function ocLoadHistory() {
                 if (res.success && res.messages) {
                     var container = document.getElementById('ocMessages');
                     container.innerHTML = '';
-                    for (var i = 0; i < res.messages.length; i++) {
+                    // The server sends newest first, and new messages are prepended,
+                    // so walk backwards to keep newest at the top.
+                    for (var i = res.messages.length - 1; i >= 0; i--) {
                         var m = res.messages[i];
                         ocAddMessage(m.ROLE, m.MESSAGE);
                     }
@@ -198,6 +200,7 @@ function ocLoadHistory() {
                         var msg = ocLang && ocLang.howCanIHelp || 'How can I help you?';
                         ocAddMessage('assistant', msg);
                     }
+                    ocScrollToTop();
                 }
             } catch(e) {}
         }
