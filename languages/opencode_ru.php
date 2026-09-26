@@ -81,10 +81,8 @@ $dictionary = array(
 
     'OPENCODE_PARAMETERS' => 'Параметры',
     'OPENCODE_MEMORY_LIMIT' => 'Ограничение памяти',
-    'OPENCODE_MEMORY_MAX' => 'Максимум памяти (MemoryMax)',
-    'OPENCODE_MEMORY_HIGH' => 'Высокий порог (MemoryHigh)',
-    'OPENCODE_MIN_RAM_MB' => 'Мин. памяти для установки, МБ',
-    'OPENCODE_MIN_RAM_MB_HELP' => 'Не устанавливать opencode web на машинах с меньшим объёмом RAM. 0 — проверку отключить.',
+    'OPENCODE_MEMORY_MAX' => 'Максимум памяти',
+    'OPENCODE_MEMORY_HIGH' => 'Высокий порог',
     'OPENCODE_REMOVE_OPENCODE_CONFIRM' => 'Вы уверены? Это полностью удалит OpenCode AI из системы.',
     'OPENCODE_INSTALL_ARCH_ERROR' => 'Обнаружена 32-разрядная система. OpenCode AI требует 64-разрядную ОС. Установка прервана.',
     'OPENCODE_HISTORY_CLEARED' => 'История очищена. Чем могу помочь?',

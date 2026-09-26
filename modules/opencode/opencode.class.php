@@ -526,7 +526,6 @@ class opencode extends module {
                 $this->config['OC_MEMORY_LIMIT'] = gr('oc_memory_limit') ? 1 : 0;
                 $this->config['OC_MEMORY_MAX'] = gr('oc_memory_max');
                 $this->config['OC_MEMORY_HIGH'] = gr('oc_memory_high');
-                $this->config['OC_MIN_RAM_MB'] = (int)gr('oc_min_ram_mb');
                 $this->config['OC_REMOTE_ENABLED'] = gr('oc_remote_enabled') ? 1 : 0;
                 $this->config['OC_REMOTE_URL'] = gr('oc_remote_url');
             }
@@ -651,7 +650,6 @@ class opencode extends module {
         $out['OC_MEMORY_LIMIT'] = isset($this->config['OC_MEMORY_LIMIT']) ? $this->config['OC_MEMORY_LIMIT'] : '0';
         $out['OC_MEMORY_MAX'] = $this->config['OC_MEMORY_MAX'] ?: '768M';
         $out['OC_MEMORY_HIGH'] = $this->config['OC_MEMORY_HIGH'] ?: '512M';
-        $out['OC_MIN_RAM_MB'] = $this->getMinRamMb();
         $out['OC_REMOTE_ENABLED'] = isset($this->config['OC_REMOTE_ENABLED']) ? $this->config['OC_REMOTE_ENABLED'] : '0';
         $out['OC_REMOTE_URL'] = $this->config['OC_REMOTE_URL'] ?: '';
         $out['OC_REMOTE_VISIBLE'] = (!empty($this->config['OC_REMOTE_ENABLED'])) ? '' : 'style="display:none"';
@@ -1109,27 +1107,13 @@ class opencode extends module {
         return count($id_list);
     }
 
-    function getMinRamMb() {
-        $mb = isset($this->config['OC_MIN_RAM_MB']) ? (int)$this->config['OC_MIN_RAM_MB'] : 3600;
-        if ($mb < 0) $mb = 3600;
-        if ($mb > 1048576) $mb = 1048576;
-        return $mb;
-    }
-
     function install($parent_name = '') {
         $arch = trim(shell_exec('uname -m'));
-        $mem_kb = (int)trim(shell_exec("grep MemTotal /proc/meminfo | awk '{print \$2}'"));
         $is_64bit = !preg_match('/^(i[3456]86|armv[567]l)$/', $arch);
-        $min_ram_mb = $this->getMinRamMb();
-        $min_ram_kb = $min_ram_mb * 1024;
-        $big_mem = ($min_ram_mb <= 0) || ($mem_kb > $min_ram_kb);
-        $install_web = $is_64bit && $big_mem;
+        $install_web = $is_64bit;
 
         if (!$is_64bit) {
             DebMes("Opencode install: 32-bit arch ({$arch}), skipping opencode web", 'opencode');
-        }
-        if (!$big_mem) {
-            DebMes("Opencode install: total RAM {$mem_kb} kB <= {$min_ram_mb} MB, skipping opencode web", 'opencode');
         }
 
         parent::install($parent_name);

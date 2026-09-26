@@ -81,10 +81,8 @@ $dictionary = array(
 
     'OPENCODE_PARAMETERS' => 'Parameters',
     'OPENCODE_MEMORY_LIMIT' => 'Memory Limit',
-    'OPENCODE_MEMORY_MAX' => 'MemoryMax',
-    'OPENCODE_MEMORY_HIGH' => 'MemoryHigh',
-    'OPENCODE_MIN_RAM_MB' => 'Min. RAM to install, MB',
-    'OPENCODE_MIN_RAM_MB_HELP' => 'Skip opencode web install on machines with less RAM. Set to 0 to disable the check.',
+    'OPENCODE_MEMORY_MAX' => 'Maximum memory',
+    'OPENCODE_MEMORY_HIGH' => 'High threshold',
     'OPENCODE_REMOVE_OPENCODE_CONFIRM' => 'Are you sure? This will completely uninstall OpenCode AI from the system.',
     'OPENCODE_INSTALL_ARCH_ERROR' => '32-bit system detected. OpenCode AI requires a 64-bit operating system. Installation aborted.',
     'OPENCODE_HISTORY_CLEARED' => 'History cleared. How can I help you?',
