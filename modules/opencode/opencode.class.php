@@ -95,13 +95,35 @@ class opencode extends module {
         return preg_match('/\d+\.\d+\.\d+/', $raw, $m) ? $m[0] : '';
     }
 
+    /**
+     * saveConfig() rewrites the whole serialized array from a snapshot taken by
+     * getConfig(). Long-lived callers (the background worker, the status poll)
+     * therefore overwrite whatever the admin saved in the meantime, which is how
+     * the MCP server list kept disappearing. This re-reads the row and merges
+     * only the given keys.
+     */
+    function updateConfig($changes) {
+        $rec = SQLSelectOne("SELECT * FROM project_modules WHERE NAME = '" . $this->name . "'");
+        $fresh = array();
+        if (isset($rec['DATA']) && $rec['DATA']) {
+            $fresh = unserialize($rec['DATA']);
+        }
+        if (!is_array($fresh)) $fresh = array();
+        foreach ($changes as $key => $value) {
+            if ($value === null) unset($fresh[$key]);
+            else $fresh[$key] = $value;
+        }
+        $rec['DATA'] = serialize($fresh);
+        SQLUpdate('project_modules', $rec);
+        $this->config = $fresh;
+    }
+
     function getCurrentVersion() {
         $cached = isset($this->config['OC_RUNNING_VERSION']) ? trim((string)$this->config['OC_RUNNING_VERSION']) : '';
         if ($cached !== '') return $cached;
         $detected = $this->getOpencodeVersion();
         if ($detected !== '') {
-            $this->config['OC_RUNNING_VERSION'] = $detected;
-            $this->saveConfig();
+            $this->updateConfig(array('OC_RUNNING_VERSION' => $detected));
         }
         return $detected;
     }
@@ -123,8 +145,7 @@ class opencode extends module {
         if ($min === '') return;
         $cur = $this->getMinVersion();
         if ($cur !== '' && version_compare($min, $cur, '<=')) return;
-        $this->config['OC_MIN_VERSION'] = $min;
-        $this->saveConfig();
+        $this->updateConfig(array('OC_MIN_VERSION' => $min));
         DebMes("Opencode: minimum required version is now {$min}", 'opencode');
     }
 
@@ -132,8 +153,7 @@ class opencode extends module {
         $version = trim((string)$version);
         if ($version === '') return;
         if (isset($this->config['OC_RUNNING_VERSION']) && $this->config['OC_RUNNING_VERSION'] === $version) return;
-        $this->config['OC_RUNNING_VERSION'] = $version;
-        $this->saveConfig();
+        $this->updateConfig(array('OC_RUNNING_VERSION' => $version));
     }
 
     function extractApiError($result) {
@@ -313,8 +333,7 @@ class opencode extends module {
         }
         DebMes("Opencode: created session={$session_id}", 'opencode');
 
-        $this->config['OC_SESSION_ID'] = $session_id;
-        $this->saveConfig();
+        $this->updateConfig(array('OC_SESSION_ID' => $session_id));
 
         $body = $this->buildMessageBody($message);
         $result = $this->restRequest('POST', "/session/{$session_id}/message", $body, $timeout);
@@ -355,11 +374,11 @@ class opencode extends module {
             $cost = isset($result['data']['cost']) ? $result['data']['cost'] : null;
         }
         if ($tokens) {
-            $this->config['OC_SESSION_TOKENS'] = $tokens;
+            $changes = array('OC_SESSION_TOKENS' => $tokens);
             if ($cost !== null) {
-                $this->config['OC_SESSION_COST'] = $cost;
+                $changes['OC_SESSION_COST'] = $cost;
             }
-            $this->saveConfig();
+            $this->updateConfig($changes);
         }
     }
 
@@ -415,8 +434,7 @@ class opencode extends module {
         if ($deps['opencode_binary'] !== 'ok' && empty($this->config['OC_REMOVED'])) {
             $last_attempt = (int)(isset($this->config['OC_INSTALL_ATTEMPT']) ? $this->config['OC_INSTALL_ATTEMPT'] : 0);
             if ((time() - $last_attempt) >= 3600) {
-                $this->config['OC_INSTALL_ATTEMPT'] = time();
-                $this->saveConfig();
+                $this->updateConfig(array('OC_INSTALL_ATTEMPT' => time()));
                 $this->installOpencodeBinary();
                 $deps = $this->checkDependencies($health, $is_post);
             }
@@ -554,10 +572,7 @@ class opencode extends module {
         }
 
         if ($this->view_mode == 'clear_session') {
-            unset($this->config['OC_SESSION_ID']);
-            unset($this->config['OC_SESSION_TOKENS']);
-            unset($this->config['OC_SESSION_COST']);
-            $this->saveConfig();
+            $this->updateConfig(array('OC_SESSION_ID' => null, 'OC_SESSION_TOKENS' => null, 'OC_SESSION_COST' => null));
             $out['SESSION_CLEARED_VISIBLE'] = '';
         } else {
             $out['SESSION_CLEARED_VISIBLE'] = 'style="display:none"';
@@ -565,11 +580,7 @@ class opencode extends module {
 
         if ($this->view_mode == 'restart_opencode') {
             $this->syncServiceRestart();
-            unset($this->config['OC_SESSION_ID']);
-            unset($this->config['OC_SESSION_TOKENS']);
-            unset($this->config['OC_SESSION_COST']);
-            $this->config['OC_RESTARTED'] = 1;
-            $this->saveConfig();
+            $this->updateConfig(array('OC_SESSION_ID' => null, 'OC_SESSION_TOKENS' => null, 'OC_SESSION_COST' => null, 'OC_RESTARTED' => 1));
         } else {
             unset($this->config['OC_RESTARTED']);
         }
@@ -590,8 +601,7 @@ class opencode extends module {
             if ($binary_ok) {
                 $this->removeOpencode();
             } else {
-                unset($this->config['OC_REMOVED']);
-                $this->saveConfig();
+                $this->updateConfig(array('OC_REMOVED' => null));
                 $this->installOpencodeBinary();
                 $this->setupServiceDropin();
                 $this->syncServiceRestart();
@@ -896,9 +906,7 @@ class opencode extends module {
         $sudo = $this->isRoot() ? '' : 'sudo ';
         exec($sudo . 'id 2>&1', $out, $rc);
         $ok = ($rc === 0);
-        $this->config['OC_SUDO_CHECK_TS'] = time();
-        $this->config['OC_SUDO_OK'] = $ok ? 1 : 0;
-        $this->saveConfig();
+        $this->updateConfig(array('OC_SUDO_CHECK_TS' => time(), 'OC_SUDO_OK' => $ok ? 1 : 0));
         return $ok;
     }
 
@@ -1149,10 +1157,9 @@ class opencode extends module {
         $this->getConfig();
         $config_file = $this->opencode_config_dir . '/opencode.jsonc';
         if (!file_exists($config_file)) {
-            $this->config['OC_MCP_SERVERS'] = json_encode(array(
+            $this->updateConfig(array('OC_MCP_SERVERS' => json_encode(array(
                 array('name' => 'music', 'type' => 'local', 'command' => 'python3', 'args' => DIR_MODULES . 'opencode/mcp/mcp_music.py', 'enabled' => true)
-            ), JSON_UNESCAPED_SLASHES);
-            $this->saveConfig();
+            ), JSON_UNESCAPED_SLASHES)));
             $this->writeOpencodeConfig();
         }
     }
@@ -1251,8 +1258,7 @@ class opencode extends module {
             $this->opencode_bin = $new_bin;
             DebMes("Opencode binary found at: " . $this->opencode_bin, 'opencode');
             exec("{$sudo}chmod 755 " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
-            unset($this->config['OC_INSTALL_ATTEMPT']);
-            $this->saveConfig();
+            $this->updateConfig(array('OC_INSTALL_ATTEMPT' => null));
         } else {
             DebMes("Opencode installation failed", 'opencode');
         }
@@ -1318,9 +1324,13 @@ class opencode extends module {
             return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . LANG_OPENCODE_UPGRADE_NO_CHANGE . ' ' . $old_version);
         }
 
-        $this->config['OC_RUNNING_VERSION'] = $new_version;
-        unset($this->config['OC_SESSION_ID'], $this->config['OC_SESSION_TOKENS'], $this->config['OC_SESSION_COST'], $this->config['OC_INSTALL_ATTEMPT']);
-        $this->saveConfig();
+        $this->updateConfig(array(
+            'OC_RUNNING_VERSION' => $new_version,
+            'OC_SESSION_ID' => null,
+            'OC_SESSION_TOKENS' => null,
+            'OC_SESSION_COST' => null,
+            'OC_INSTALL_ATTEMPT' => null
+        ));
 
         $this->setupServiceDropin();
         $this->syncServiceRestart();
@@ -1344,8 +1354,7 @@ class opencode extends module {
         file_put_contents($this->opencode_config_dir . '/opencode.jsonc', '{}');
         DebMes("Opencode: removing binary", 'opencode');
         exec("{$sudo}rm -f " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
-        $this->config['OC_REMOVED'] = 1;
-        $this->saveConfig();
+        $this->updateConfig(array('OC_REMOVED' => 1));
         DebMes("Opencode: remove complete", 'opencode');
     }
 
