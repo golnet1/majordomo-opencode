@@ -12,11 +12,13 @@
             <span id="oc_deps_model" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_MODEL_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
             <span id="oc_deps_model_label" style="vertical-align:middle;">[#DEPS_MODEL_LABEL#]</span>
             <span id="oc_version_badge" [#OC_VERSION_ROW_VISIBLE#] style="margin-left:10px;padding:1px 8px;border-radius:10px;background:[#OC_VERSION_BADGE_COLOR#];color:#fff;font-size:12px;vertical-align:middle;">v[#OC_VERSION_CURRENT#]</span>
+            <span id="oc_version_available" [#OC_UPDATE_HINT_VISIBLE#] style="margin-left:6px;font-size:12px;color:#3c763d;vertical-align:middle;">[#OC_UPDATE_HINT_TEXT#]</span>
         </span>
     </h3>
     <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;align-items:center;">
-        <a [#OC_UPGRADE_BTN_VISIBLE#] href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=upgrade_opencode" class="btn btn-danger btn-sm" title="<#LANG_OPENCODE_UPGRADE_BTN_HELP#>">
-           <span class="glyphicon glyphicon-arrow-up"></span> <#LANG_OPENCODE_UPGRADE#></a>
+        <a id="oc_upgrade_btn" [#OC_UPGRADE_BTN_VISIBLE#] href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=[#OC_UPGRADE_VIEW_MODE#]" class="btn btn-danger btn-sm" title="[#OC_UPGRADE_BTN_TITLE#]" onclick="return ocUpgradeConfirm(this)">
+           <span class="glyphicon glyphicon-arrow-up"></span> <span id="oc_upgrade_btn_label">[#OC_UPGRADE_BTN_LABEL#]</span></a>
+        <a href="#" onclick="ocToggleLog();return false" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_INSTALL_LOG#>"><span class="glyphicon glyphicon-list-alt"></span> <#LANG_OPENCODE_INSTALL_LOG#></a>
         <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=restart_opencode" class="btn btn-warning btn-sm" title="<#LANG_OPENCODE_RESTART_SERVICE_HELP#>">
            <span class="glyphicon glyphicon-refresh"></span> <#LANG_OPENCODE_RESTART_SERVICE#></a>
         [#if DEPS_BINARY_LABEL="OK"#]
@@ -31,6 +33,13 @@
         <a href="?action=opencode&md=opencode&tab=help" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_HELP#>"><span class="glyphicon glyphicon-question-sign"></span></a>
         [#endif#]
         <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#opencode_about"><#LANG_OPENCODE_ABOUT_MODULE#>&nbsp;&nbsp;<span class="glyphicon glyphicon-info-sign icon-white"></span></button>
+    </div>
+    <div id="oc_log_box" style="display:none;margin-bottom:10px;">
+        <div style="margin-bottom:4px">
+            <button type="button" class="btn btn-default btn-xs" onclick="ocCopyLog();return false"><#LANG_OPENCODE_COPY_LOG#></button>
+            <span id="oc_copy_status" style="font-size:12px;margin-left:6px"></span>
+        </div>
+        <pre id="oc_journal_log" style="max-height:260px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-all;background:#fcfcfc;border:1px solid #ddd;padding:8px;"></pre>
     </div>
     <hr>
 
@@ -502,6 +511,13 @@ function ocLoadProviderModels() {
     xhr.send('endpoint=' + encodeURIComponent(endpoint) + '&api_key=' + encodeURIComponent(apiKey));
 }
 
+function ocUpgradeConfirm(a) {
+    if (a && a.getAttribute('data-major') === '1') {
+        return confirm('<#LANG_OPENCODE_UPGRADE_V2_CONFIRM#>');
+    }
+    return true;
+}
+
 function ocUpdateStatus() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', '/modules/opencode/opencode_ajax.php?op=check_status&_=' + Date.now(), true);
@@ -528,6 +544,36 @@ function ocUpdateStatus() {
                     el.textContent = 'v' + r.version + (r.outdated ? ' → ' + r.min_version : '');
                 } else {
                     el.style.display = 'none';
+                }
+            }
+            var needMinor = r.outdated || r.update_available;
+            var offerMajor = r.binary_ok && !needMinor && r.v2_available;
+            el = document.getElementById('oc_version_available');
+            if (el) {
+                if (offerMajor && r.version_v2) {
+                    el.style.display = '';
+                    el.textContent = '<#LANG_OPENCODE_V2_AVAILABLE#> ' + r.version_v2;
+                } else if (r.update_available && r.version_latest) {
+                    el.style.display = '';
+                    el.textContent = '<#LANG_OPENCODE_VERSION_AVAILABLE#> ' + r.version_latest;
+                } else {
+                    el.style.display = 'none';
+                }
+            }
+            el = document.getElementById('oc_upgrade_btn');
+            if (el) {
+                el.style.display = (r.binary_ok && (needMinor || offerMajor)) ? '' : 'none';
+                var lbl = document.getElementById('oc_upgrade_btn_label');
+                if (offerMajor) {
+                    if (lbl) lbl.textContent = '<#LANG_OPENCODE_UPGRADE_V2#>';
+                    el.title = '<#LANG_OPENCODE_UPGRADE_V2_HELP#>';
+                    el.setAttribute('data-major', '1');
+                    el.href = el.href.replace(/view_mode=[^&]*/, 'view_mode=upgrade_opencode_major');
+                } else {
+                    if (lbl) lbl.textContent = '<#LANG_OPENCODE_UPGRADE#>';
+                    el.title = '<#LANG_OPENCODE_UPGRADE_BTN_HELP#>';
+                    el.setAttribute('data-major', '0');
+                    el.href = el.href.replace(/view_mode=[^&]*/, 'view_mode=upgrade_opencode');
                 }
             }
             el = document.getElementById('oc_version_diag');
@@ -615,6 +661,54 @@ function ocInstallMcpPkg(btn) {
         alert('<#LANG_OPENCODE_NETWORK_ERROR#>');
     };
     xhr.send();
+}
+var ocLogTimer = null, ocLogUserClosed = false;
+// «Журнал установки»: первое нажатие раскрывает, повторное — сворачивает.
+function ocToggleLog() {
+    var box = document.getElementById('oc_log_box');
+    if (!box) return;
+    if (box.style.display !== 'none') {
+        box.style.display = 'none';
+        if (ocLogTimer) { clearInterval(ocLogTimer); ocLogTimer = null; }
+        ocLogUserClosed = true;
+    } else {
+        ocLogUserClosed = false;
+        ocShowLog();
+    }
+}
+function ocShowLog() {
+    var box = document.getElementById('oc_log_box');
+    var el = document.getElementById('oc_journal_log');
+    if (!box || !el) return;
+    box.style.display = '';
+    function load() {
+        var x = new XMLHttpRequest();
+        x.open('GET', '/modules/opencode/opencode_ajax.php?op=get_log&_=' + Date.now(), true);
+        x.onload = function() { if (x.status == 200) { el.textContent = x.responseText || '—'; el.scrollTop = el.scrollHeight; } };
+        x.send();
+    }
+    load();
+    if (!ocLogTimer) ocLogTimer = setInterval(load, 3000);
+}
+function ocCopyLog() {
+    var text = (document.getElementById('oc_journal_log') || {}).textContent || '';
+    var st = document.getElementById('oc_copy_status');
+    function done(ok) {
+        if (!st) return;
+        st.style.color = ok ? '#28a745' : '#dc3545';
+        st.textContent = ok ? '<#LANG_OPENCODE_COPIED#>' : '<#LANG_OPENCODE_COPY_FAILED#>';
+        setTimeout(function(){ st.textContent = ''; }, 2500);
+    }
+    function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.top = '-1000px';
+        document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+        var ok = false; try { ok = document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(ta); done(ok);
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function(){ done(true); }, fallback);
+    } else fallback();
 }
 setInterval(ocUpdateStatus, 5000);
 ocUpdateStatus();

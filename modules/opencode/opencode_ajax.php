@@ -64,6 +64,9 @@ if ($op == 'send_message') {
     $model_name = $m->config['OC_PROVIDER_ENDPOINT'] ? ($m->config['OC_PROVIDER_MODEL'] ?: $m->config['OC_MODEL']) : ($m->config['OC_MODEL'] ?: 'opencode/big-pickle');
     $mcp_result = $m->restRequest('GET', '/mcp');
     $mcp_status = ($mcp_result && $mcp_result['code'] === 200 && is_array($mcp_result['data'])) ? $mcp_result['data'] : array();
+    $cur_version = $m->getCurrentVersion();
+    $latest_version = $m->getLatestOpencodeVersion();
+    $latest_v2 = $m->getLatestOpencodeV2();
     echo json_encode(array(
         'success' => true,
         'api_ok' => ($deps['api'] === 'ok'),
@@ -72,10 +75,19 @@ if ($op == 'send_message') {
         'model' => $model_name,
         'mcp' => $mcp_status,
         'mcp_python_ok' => $m->checkPythonPackage('mcp'),
-        'version' => $m->getCurrentVersion(),
+        'version' => $cur_version,
         'min_version' => $m->getMinVersion(),
-        'outdated' => $m->isVersionOutdated()
+        'outdated' => $m->isVersionOutdated(),
+        'version_latest' => $latest_version,
+        'update_available' => $m->isUpdateAvailable($cur_version, $latest_version),
+        'version_v2' => $latest_v2,
+        'v2_available' => ($latest_v2 !== '' && $cur_version !== '' && version_compare($latest_v2, $cur_version, '>'))
     ));
+} elseif ($op == 'get_log') {
+    while (ob_get_level()) ob_end_clean();
+    header('Content-Type: text/plain; charset=utf-8');
+    echo $m->getJournalLog();
+    exit;
 } elseif ($op == 'install_mcp_package') {
     ob_clean();
     $error_msg = $m->installPythonDeps();

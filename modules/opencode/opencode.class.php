@@ -140,6 +140,155 @@ class opencode extends module {
         return version_compare($cur, $min) < 0;
     }
 
+    /**
+     * Последняя опубликованная версия OpenCode в npm — из того же источника,
+     * откуда ставится бинарник. Ответ кэшируется в файле, чтобы не обращаться
+     * к сети на каждом открытии модуля: с версией — 6 часов, без — 15 минут.
+     */
+    function getLatestOpencodeVersion() {
+        $file = sys_get_temp_dir() . '/opencode-update.json';
+        $data = @json_decode((string)@file_get_contents($file), true);
+        if (is_array($data) && isset($data['t'])) {
+            $ttl = !empty($data['latest']) ? 21600 : 900;
+            if ((time() - (int)$data['t']) < $ttl) {
+                return isset($data['latest']) ? (string)$data['latest'] : '';
+            }
+        }
+        $latest = '';
+        if (function_exists('curl_init')) {
+            $ch = curl_init('https://registry.npmjs.org/opencode-ai/latest');
+            curl_setopt_array($ch, array(
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_USERAGENT => 'MajorDoMo-opencode',
+            ));
+            $body = curl_exec($ch);
+            curl_close($ch);
+            if (is_string($body) && $body !== '') {
+                $json = @json_decode($body, true);
+                if (isset($json['version'])) $latest = (string)$json['version'];
+            }
+        }
+        @file_put_contents($file, json_encode(array('t' => time(), 'latest' => $latest)));
+        return $latest;
+    }
+
+    /** Есть ли в сети версия новее установленной. */
+    function isUpdateAvailable($installed, $latest) {
+        return ($installed !== '' && $latest !== '' && version_compare($latest, $installed, '>'));
+    }
+
+    /**
+     * Последняя версия OpenCode 2. Ветка 2.x не публикуется в npm-пакете
+     * (там только 1.x), поэтому её номер берём из git-тегов основного
+     * репозитория на GitHub (v2.*). Ответ кэшируется так же, как для 1.x.
+     */
+    function getLatestOpencodeV2() {
+        $file = sys_get_temp_dir() . '/opencode-update-v2.json';
+        $data = @json_decode((string)@file_get_contents($file), true);
+        if (is_array($data) && isset($data['t'])) {
+            $ttl = !empty($data['latest']) ? 21600 : 900;
+            if ((time() - (int)$data['t']) < $ttl) {
+                return isset($data['latest']) ? (string)$data['latest'] : '';
+            }
+        }
+        $latest = '';
+        if (function_exists('curl_init')) {
+            $ch = curl_init('https://api.github.com/repos/anomalyco/opencode/git/matching-refs/tags/v2.');
+            curl_setopt_array($ch, array(
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_USERAGENT => 'MajorDoMo-opencode',
+                CURLOPT_HTTPHEADER => array('Accept: application/vnd.github+json'),
+            ));
+            $body = curl_exec($ch);
+            curl_close($ch);
+            $refs = @json_decode((string)$body, true);
+            if (is_array($refs)) {
+                foreach ($refs as $ref) {
+                    if (!isset($ref['ref'])) continue;
+                    $name = ltrim((string)$ref['ref'], 'refs/tags/');
+                    $name = ltrim($name, 'v');
+                    if (preg_match('/^2\.\d+/', $name) && ($latest === '' || version_compare($name, $latest, '>'))) {
+                        $latest = $name;
+                    }
+                }
+            }
+        }
+        @file_put_contents($file, json_encode(array('t' => time(), 'latest' => $latest)));
+        return $latest;
+    }
+
+    /**
+     * Собирает в $out всю информацию о версиях и о том, что показывает кнопка
+     * обновления: пока есть более новая 1.x — это обычное обновление; когда
+     * 1.x уже максимальная, та же кнопка предлагает переход на OpenCode 2.
+     */
+    function applyOpencodeVersionInfo(&$out, $binary_ok) {
+        $cur = $this->getCurrentVersion();
+        $min = $this->getMinVersion();
+        $latest = $this->getLatestOpencodeVersion();
+        $latest_v2 = $this->getLatestOpencodeV2();
+        $outdated = $this->isVersionOutdated();
+        $update_available = $this->isUpdateAvailable($cur, $latest);
+        $v2_available = ($latest_v2 !== '' && $cur !== '' && version_compare($latest_v2, $cur, '>'));
+        $offer_major = (!$outdated && !$update_available && $v2_available);
+
+        $out['OC_VERSION_CURRENT'] = $cur !== '' ? $cur : '?';
+        $out['OC_VERSION_MIN'] = $min !== '' ? $min : '?';
+        $out['OC_VERSION_LATEST'] = $latest !== '' ? $latest : '?';
+        $out['OC_VERSION_V2'] = $latest_v2;
+        $out['OC_V2_AVAILABLE'] = $v2_available ? '1' : '0';
+        $out['OC_VERSION_OUTDATED'] = $outdated ? '1' : '0';
+        $out['OC_UPDATE_AVAILABLE'] = $update_available ? '1' : '0';
+        $out['OC_VERSION_BADGE_COLOR'] = $outdated ? '#d9534f' : '#5cb85c';
+        $out['OC_VERSION_BADGE_VISIBLE'] = $outdated ? '' : 'style="display:none"';
+        $out['OC_VERSION_ROW_VISIBLE'] = $cur !== '' ? '' : 'style="display:none"';
+
+        $hint_visible = ($update_available || $offer_major);
+        $out['OC_UPDATE_HINT_VISIBLE'] = $hint_visible ? '' : 'style="display:none"';
+        $out['OC_UPDATE_HINT_TEXT'] = $offer_major
+            ? LANG_OPENCODE_V2_AVAILABLE . ' ' . $latest_v2
+            : (LANG_OPENCODE_VERSION_AVAILABLE . ' ' . $latest);
+
+        $out['OC_UPGRADE_BTN_LABEL'] = $offer_major ? LANG_OPENCODE_UPGRADE_V2 : LANG_OPENCODE_UPGRADE;
+        $out['OC_UPGRADE_VIEW_MODE'] = $offer_major ? 'upgrade_opencode_major' : 'upgrade_opencode';
+        $out['OC_UPGRADE_BTN_TITLE'] = $offer_major ? LANG_OPENCODE_UPGRADE_V2_HELP : LANG_OPENCODE_UPGRADE_BTN_HELP;
+        $out['OC_UPGRADE_BTN_VISIBLE'] = ($binary_ok && ($outdated || $update_available || $offer_major)) ? '' : 'style="display:none"';
+    }
+
+    /**
+     * Журнал модуля — как «журнал установки» в Piper TTS. Берётся самый свежий
+     * файл cms/debmes/<дата>/opencode.log (туда пишутся шаги установки,
+     * обновления и работы модуля), последние $max_bytes байт.
+     */
+    function getJournalLog($max_bytes = 65536) {
+        $base = rtrim(defined('ROOT') ? ROOT : '/var/www/html', '/') . '/cms/debmes';
+        if (!is_dir($base)) return '';
+        $files = glob($base . '/*/opencode.log');
+        if (!$files) {
+            $alt = $base . '/opencode.log';
+            $files = file_exists($alt) ? array($alt) : array();
+        }
+        if (!$files) return '';
+        $latest = '';
+        $latest_mtime = -1;
+        foreach ($files as $f) {
+            $mt = @filemtime($f);
+            if ($mt !== false && $mt > $latest_mtime) { $latest_mtime = $mt; $latest = $f; }
+        }
+        if (!$latest) return '';
+        $size = @filesize($latest);
+        if ($size === false) return '';
+        $offset = ($size > $max_bytes) ? ($size - $max_bytes) : 0;
+        $text = @file_get_contents($latest, false, null, $offset);
+        return $text === false ? '' : $text;
+    }
+
     function noteMinVersion($min) {
         $min = trim((string)$min);
         if ($min === '') return;
@@ -359,6 +508,10 @@ class opencode extends module {
             }
         }
         $response = trim(implode("\n", $text_parts));
+        // Модель (opencode/big-pickle) иногда вставляет служебные теги «размышления»
+        // (</thinking>, </response> и т.п.) прямо в текст ответа. Вырезаем их, иначе
+        // они попадают в чат и в озвучку (say()).
+        $response = trim(preg_replace('#</?\s*(?:thinking|think|response|reasoning)\s*>#i', '', $response));
         DebMes("Opencode API response: " . ($response ? substr($response, 0, 200) : 'EMPTY'), 'opencode');
         return $response;
     }
@@ -456,16 +609,9 @@ class opencode extends module {
         $out['DEPS_MODEL_COLOR'] = $api_ok ? '#5cb85c' : '#d9534f';
         $out['DEPS_MODEL_LABEL'] = $api_ok ? $model_name : LANG_OPENCODE_NO_CONNECTION;
 
-        $cur_version = $this->getCurrentVersion();
-        $min_version = $this->getMinVersion();
-        $outdated = $this->isVersionOutdated();
-        $out['OC_VERSION_CURRENT'] = $cur_version !== '' ? $cur_version : '?';
-        $out['OC_VERSION_MIN'] = $min_version !== '' ? $min_version : '?';
-        $out['OC_VERSION_OUTDATED'] = $outdated ? '1' : '0';
-        $out['OC_VERSION_BADGE_COLOR'] = $outdated ? '#d9534f' : '#5cb85c';
-        $out['OC_VERSION_BADGE_VISIBLE'] = $outdated ? '' : 'style="display:none"';
-        $out['OC_VERSION_ROW_VISIBLE'] = $cur_version !== '' ? '' : 'style="display:none"';
-        $out['OC_UPGRADE_BTN_VISIBLE'] = ($outdated && $binary_ok) ? '' : 'style="display:none"';
+        // Версия, признак «устарел», наличие обновления в ветке 1.x и — когда
+        // 1.x уже максимальная — предложение перейти на OpenCode 2 (та же кнопка).
+        $this->applyOpencodeVersionInfo($out, $binary_ok);
         $out['UPGRADE_RESULT_VISIBLE'] = 'style="display:none"';
         $out['UPGRADE_RESULT'] = '';
         $out['UPGRADE_RESULT_CLASS'] = 'alert-info';
@@ -585,16 +731,13 @@ class opencode extends module {
             unset($this->config['OC_RESTARTED']);
         }
 
-        if ($this->view_mode == 'upgrade_opencode') {
-            $upgrade = $this->upgradeOpencode();
+        if ($this->view_mode == 'upgrade_opencode' || $this->view_mode == 'upgrade_opencode_major') {
+            $is_major = ($this->view_mode == 'upgrade_opencode_major');
+            $upgrade = $this->upgradeOpencode('', $is_major);
             $out['UPGRADE_RESULT'] = htmlspecialchars($upgrade['message'], ENT_QUOTES, 'UTF-8');
             $out['UPGRADE_RESULT_CLASS'] = $upgrade['ok'] ? 'alert-success' : 'alert-danger';
             $out['UPGRADE_RESULT_VISIBLE'] = '';
-            $out['OC_VERSION_OUTDATED'] = $this->isVersionOutdated() ? '1' : '0';
-            $out['OC_VERSION_CURRENT'] = $this->getCurrentVersion() ?: '?';
-            $out['OC_VERSION_BADGE_COLOR'] = $out['OC_VERSION_OUTDATED'] === '1' ? '#d9534f' : '#5cb85c';
-            $out['OC_VERSION_BADGE_VISIBLE'] = $out['OC_VERSION_OUTDATED'] === '1' ? '' : 'style="display:none"';
-            $out['OC_UPGRADE_BTN_VISIBLE'] = ($out['OC_VERSION_OUTDATED'] === '1' && $binary_ok) ? '' : 'style="display:none"';
+            $this->applyOpencodeVersionInfo($out, $binary_ok);
         }
 
         if ($this->view_mode == 'toggle_opencode') {
@@ -1279,7 +1422,7 @@ class opencode extends module {
         }
     }
 
-    function upgradeOpencode($target = '') {
+    function upgradeOpencode($target = '', $major = false) {
         $sudo = $this->isRoot() ? '' : 'sudo ';
 
         if (!file_exists($this->opencode_bin)) {
@@ -1296,7 +1439,14 @@ class opencode extends module {
 
         $cmd = escapeshellarg($this->opencode_bin) . ' upgrade';
         if ($target !== '') $cmd .= ' ' . escapeshellarg($target);
-        $cmd .= ' --method npm 2>&1';
+        if ($major) {
+            // Переход на OpenCode 2 (удаляет OpenCode 1). Метод установки
+            // выбирает сам CLI — ветки 2.x в npm-пакете нет.
+            $cmd .= ' --major';
+        } else {
+            $cmd .= ' --method npm';
+        }
+        $cmd .= ' 2>&1';
 
         DebMes("Opencode: running '{$sudo}{$cmd}'", 'opencode');
         $output = array();
@@ -1323,6 +1473,10 @@ class opencode extends module {
         if ($old_version !== '' && $new_version === $old_version) {
             return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . LANG_OPENCODE_UPGRADE_NO_CHANGE . ' ' . $old_version);
         }
+
+        // Сбрасываем кэш «последней версии», чтобы проверка сразу пересчиталась.
+        @unlink(sys_get_temp_dir() . '/opencode-update.json');
+        @unlink(sys_get_temp_dir() . '/opencode-update-v2.json');
 
         $this->updateConfig(array(
             'OC_RUNNING_VERSION' => $new_version,
