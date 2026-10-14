@@ -413,16 +413,11 @@ class opencode extends module {
         }
     }
 
-    function buildMessageBody($message) {
-        return array(
-            'parts' => array(
-                array('type' => 'text', 'text' => $message)
-            )
-        );
-    }
-
-    function buildSessionBody() {
-        $body = new stdClass();
+    /**
+     * Полный системный промпт: настройка модуля, ограничения безопасности и
+     * запрет выводить служебные рассуждения в текст ответа.
+     */
+    function buildSystemPrompt() {
         $prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? trim($this->config['OC_SYSTEM_PROMPT']) : '';
         if (empty($this->config['OC_FULL_ACCESS'])) {
             $restrictions = "\n\n" . LANG_OPENCODE_RESTRICTION_HEADER . "\n"
@@ -435,10 +430,34 @@ class opencode extends module {
                 . LANG_OPENCODE_RESTRICTION_CORE . "\n";
             $prompt .= $restrictions;
         }
-        if ($prompt) {
-            $body->system = array(
-                array('type' => 'text', 'text' => $prompt)
-            );
+        // OpenCode игнорирует system при создании сессии — системный промпт нужно
+        // передавать вместе с каждым сообщением (см. buildMessageBody).
+        // Отдельно запрещаем модели выводить цепочку рассуждений в сам ответ.
+        $no_reason = defined('LANG_OPENCODE_NO_REASONING') ? trim(LANG_OPENCODE_NO_REASONING) : '';
+        if ($no_reason !== '') {
+            $prompt = ($prompt === '' ? '' : $prompt . "\n\n") . $no_reason;
+        }
+        return trim($prompt);
+    }
+
+    function buildMessageBody($message) {
+        $body = array(
+            'parts' => array(
+                array('type' => 'text', 'text' => $message)
+            )
+        );
+        $prompt = $this->buildSystemPrompt();
+        if ($prompt !== '') {
+            $body['system'] = $prompt;
+        }
+        return $body;
+    }
+
+    function buildSessionBody() {
+        $body = new stdClass();
+        $prompt = $this->buildSystemPrompt();
+        if ($prompt !== '') {
+            $body->system = $prompt;
         }
         return $body;
     }
