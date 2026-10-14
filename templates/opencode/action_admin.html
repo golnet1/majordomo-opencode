@@ -18,7 +18,7 @@
     <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px;align-items:center;">
         <a id="oc_upgrade_btn" [#OC_UPGRADE_BTN_VISIBLE#] href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=[#OC_UPGRADE_VIEW_MODE#]" class="btn btn-danger btn-sm" title="[#OC_UPGRADE_BTN_TITLE#]" onclick="return ocUpgradeConfirm(this)">
            <span class="glyphicon glyphicon-arrow-up"></span> <span id="oc_upgrade_btn_label">[#OC_UPGRADE_BTN_LABEL#]</span></a>
-        <a href="#" onclick="ocToggleLog();return false" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_INSTALL_LOG#>"><span class="glyphicon glyphicon-list-alt"></span> <#LANG_OPENCODE_INSTALL_LOG#></a>
+        <a href="#" onclick="ocToggleLog();return false" class="btn btn-default btn-sm" title="<#LANG_OPENCODE_INSTALL_LOG_TITLE#>"><span class="glyphicon glyphicon-list-alt"></span> <#LANG_OPENCODE_INSTALL_LOG#></a>
         <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=restart_opencode" class="btn btn-warning btn-sm" title="<#LANG_OPENCODE_RESTART_SERVICE_HELP#>">
            <span class="glyphicon glyphicon-refresh"></span> <#LANG_OPENCODE_RESTART_SERVICE#></a>
         [#if DEPS_BINARY_LABEL="OK"#]
