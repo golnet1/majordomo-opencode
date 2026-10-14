@@ -9,6 +9,7 @@ class opencode extends module {
     var $api_user = 'opencode';
     var $api_pass = 'opencode';
     var $last_error = '';
+    var $is_v2_cache = null;
 
     function __construct() {
         $this->name = 'opencode';
@@ -28,6 +29,7 @@ class opencode extends module {
     }
 
     function restRequest($method, $path, $body = null, $timeout = 0) {
+        $path = $this->apiPath($path);
         if (!empty($this->config['OC_REMOTE_ENABLED']) && !empty($this->config['OC_REMOTE_URL'])) {
             $url = rtrim($this->config['OC_REMOTE_URL'], '/') . $path;
         } else {
@@ -93,6 +95,52 @@ class opencode extends module {
         if (!file_exists($this->opencode_bin)) return '';
         $raw = trim((string)shell_exec(escapeshellarg($this->opencode_bin) . ' --version 2>/dev/null'));
         return preg_match('/\d+\.\d+\.\d+/', $raw, $m) ? $m[0] : '';
+    }
+
+    /**
+     * Установлен OpenCode v2? В v2 подкоманда запуска сервера переименована:
+     * `opencode web --port ...` -> `opencode serve --port ...`. Поэтому юнит
+     * systemd собирается по-разному для v1 и v2.
+     */
+    function isOpencodeV2() {
+        if ($this->is_v2_cache !== null) return $this->is_v2_cache;
+        $version = $this->getOpencodeVersion();
+        if ($version === '') {
+            $version = $this->getCurrentVersion();
+        }
+        if ($version === '') {
+            $this->is_v2_cache = false;
+            return false;
+        }
+        $this->is_v2_cache = version_compare($version, '2.0.0', '>=');
+        return $this->is_v2_cache;
+    }
+
+    function serviceSubcommand() {
+        return $this->isOpencodeV2() ? 'serve' : 'web';
+    }
+
+    /**
+     * В v2 весь HTTP API живёт под префиксом /api (в v1 — в корне).
+     * Абсолютные пути (http://...) и уже префиксованные не трогаем.
+     */
+    function apiPath($path) {
+        if (!$this->isOpencodeV2()) return $path;
+        if (strpos($path, '/api/') === 0 || strpos($path, 'http') === 0) return $path;
+        return '/api' . $path;
+    }
+
+    /**
+     * Полезная нагрузка ответа API. Ответы v2 обычно обёрнуты в конверт
+     * {"data": ...} (иногда с дополнительными полями вроде location/cursor),
+     * тогда как v1 отдаёт объект напрямую. Возвращаем вложенный data, если он
+     * есть, иначе — тело как есть.
+     */
+    function apiData($result) {
+        if (!is_array($result) || !array_key_exists('data', $result)) return null;
+        $body = $result['data'];
+        if (is_array($body) && array_key_exists('data', $body)) return $body['data'];
+        return $body;
     }
 
     /**
@@ -414,8 +462,7 @@ class opencode extends module {
     }
 
     /**
-     * Полный системный промпт: настройка модуля, ограничения безопасности и
-     * запрет выводить служебные рассуждения в текст ответа.
+     * Системный промпт: настройка модуля плюс ограничения безопасности.
      */
     function buildSystemPrompt() {
         $prompt = isset($this->config['OC_SYSTEM_PROMPT']) ? trim($this->config['OC_SYSTEM_PROMPT']) : '';
@@ -430,17 +477,16 @@ class opencode extends module {
                 . LANG_OPENCODE_RESTRICTION_CORE . "\n";
             $prompt .= $restrictions;
         }
-        // OpenCode игнорирует system при создании сессии — системный промпт нужно
-        // передавать вместе с каждым сообщением (см. buildMessageBody).
-        // Отдельно запрещаем модели выводить цепочку рассуждений в сам ответ.
-        $no_reason = defined('LANG_OPENCODE_NO_REASONING') ? trim(LANG_OPENCODE_NO_REASONING) : '';
-        if ($no_reason !== '') {
-            $prompt = ($prompt === '' ? '' : $prompt . "\n\n") . $no_reason;
-        }
+        // v1 принимает system вместе с каждым сообщением (см. buildMessageBody),
+        // v2 — только через параметр system агента в opencode.jsonc
+        // (см. writeOpencodeConfig).
         return trim($prompt);
     }
 
     function buildMessageBody($message) {
+        if ($this->isOpencodeV2()) {
+            return array('text' => $message);
+        }
         $body = array(
             'parts' => array(
                 array('type' => 'text', 'text' => $message)
@@ -455,9 +501,11 @@ class opencode extends module {
 
     function buildSessionBody() {
         $body = new stdClass();
-        $prompt = $this->buildSystemPrompt();
-        if ($prompt !== '') {
-            $body->system = $prompt;
+        if (!$this->isOpencodeV2()) {
+            $prompt = $this->buildSystemPrompt();
+            if ($prompt !== '') {
+                $body->system = $prompt;
+            }
         }
         return $body;
     }
@@ -466,6 +514,10 @@ class opencode extends module {
         $this->getConfig();
         $this->last_error = '';
         $session_id = isset($this->config['OC_SESSION_ID']) ? $this->config['OC_SESSION_ID'] : '';
+
+        if ($this->isOpencodeV2()) {
+            return $this->processWithOpencodeV2($message, $timeout, $session_id);
+        }
 
         if ($session_id) {
             $body = $this->buildMessageBody($message);
@@ -516,6 +568,186 @@ class opencode extends module {
         return $this->parseMessageResponse($result);
     }
 
+    function cleanAssistantText($response) {
+        $re_think = 'think(?:ing)?|response|reasoning';
+        $response = preg_replace('#^.*</?\s*(?:' . $re_think . ')\s*>#is', '', $response);
+        $response = trim(preg_replace('#</?\s*(?:' . $re_think . ')\s*>#i', '', $response));
+        DebMes("Opencode API response: " . ($response ? substr($response, 0, 200) : 'EMPTY'), 'opencode');
+        return $response;
+    }
+
+    function parseAssistantMessageV2($msg) {
+        if (empty($msg['content']) || !is_array($msg['content'])) return '';
+        $text = array();
+        foreach ($msg['content'] as $c) {
+            if (is_array($c) && isset($c['type']) && $c['type'] === 'text') {
+                $text[] = isset($c['text']) ? $c['text'] : '';
+            }
+        }
+        return $this->cleanAssistantText(trim(implode("\n", $text)));
+    }
+
+    /**
+     * Путь к списку сообщений ассистента v2. Явно задаём type=assistant и
+     * order=desc (сначала самые свежие), чтобы не зависеть от порядка по
+     * умолчанию — так первый элемент всегда последний ответ агента.
+     */
+    function assistantMessagesPathV2($session_id) {
+        return "/session/{$session_id}/message?type=assistant&order=desc&limit=50";
+    }
+
+    /**
+     * Текст сообщения ассистента v2 без очистки и без записи в журнал —
+     * используется для сравнения ответов при опросе.
+     */
+    function assistantTextV2($msg) {
+        if (empty($msg['content']) || !is_array($msg['content'])) return '';
+        $text = array();
+        foreach ($msg['content'] as $c) {
+            if (is_array($c) && isset($c['type']) && $c['type'] === 'text') {
+                $text[] = isset($c['text']) ? $c['text'] : '';
+            }
+        }
+        return trim(implode("\n", $text));
+    }
+
+    /**
+     * Снимок состояния сообщений сессии до отправки промпта: id всех сообщений
+     * и текст самого свежего ответа ассистента. Нужен, чтобы после генерации
+     * отличить новый ответ от предыдущих (сессия переиспользуется).
+     */
+    function getSessionStateV2($session_id) {
+        $state = array('ids' => array(), 'has_ids' => false, 'newest_text' => '');
+        $result = $this->restRequest('GET', $this->assistantMessagesPathV2($session_id), null, 30);
+        $messages = $this->apiData($result);
+        if (is_array($messages)) {
+            foreach ($messages as $m) {
+                if (!is_array($m)) continue;
+                if (!empty($m['id'])) {
+                    $state['ids'][$m['id']] = true;
+                    $state['has_ids'] = true;
+                }
+                if ($state['newest_text'] === '' && (isset($m['type']) ? $m['type'] : '') === 'assistant') {
+                    $state['newest_text'] = $this->assistantTextV2($m);
+                }
+            }
+        }
+        return $state;
+    }
+
+    /**
+     * Ждёт появления нового ответа ассистента. Сообщения приходят от новых к
+     * старым, поэтому проверяем первый (самый свежий) ответ ассистента.
+     */
+    function getAssistantResponseV2($session_id, $state, $timeout = 0) {
+        $timeout = $timeout > 0 ? $timeout : 120;
+        $start = time();
+        do {
+            $result = $this->restRequest('GET', $this->assistantMessagesPathV2($session_id), null, 30);
+            $messages = ($result && (int)$result['code'] === 200) ? $this->apiData($result) : null;
+            if (is_array($messages)) {
+                foreach ($messages as $m) {
+                    if (!is_array($m) || (isset($m['type']) ? $m['type'] : '') !== 'assistant') continue;
+                    if ($state['has_ids']) {
+                        $id = isset($m['id']) ? $m['id'] : '';
+                        if ($id !== '' && !isset($state['ids'][$id])) return $m;
+                    } else {
+                        $text = $this->assistantTextV2($m);
+                        if ($text !== '' && $text !== $state['newest_text']) return $m;
+                    }
+                    break;
+                }
+            }
+            if (time() - $start >= $timeout) break;
+            sleep(1);
+        } while (true);
+        return null;
+    }
+
+    /**
+     * Модель для сессии v2 ("provider/model") из настроек модуля.
+     */
+    function buildModelRef() {
+        if (!empty($this->config['OC_PROVIDER_ENDPOINT'])) {
+            $model = !empty($this->config['OC_PROVIDER_MODEL']) ? $this->config['OC_PROVIDER_MODEL'] : 'default';
+            $full = 'custom/' . $model;
+        } else {
+            $full = !empty($this->config['OC_MODEL']) ? $this->config['OC_MODEL'] : 'opencode/big-pickle';
+        }
+        if (strpos($full, '/') === false) return null;
+        list($provider, $id) = explode('/', $full, 2);
+        if ($provider === '' || $id === '') return null;
+        return array('id' => $id, 'providerID' => $provider);
+    }
+
+    /**
+     * Отправляет сообщение в сессию v2 и возвращает текст ответа.
+     * null — сессию нужно пересоздать; '' — ошибка (текст в last_error).
+     */
+    function sendPromptV2($session_id, $message, $timeout = 0) {
+        $state = $this->getSessionStateV2($session_id);
+        $result = $this->restRequest('POST', "/session/{$session_id}/prompt", array('text' => $message), min($timeout, 60));
+        if (!$result || !in_array((int)$result['code'], array(200, 201, 202, 204), true)) {
+            DebMes("Opencode v2: prompt failed (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
+            return null;
+        }
+        // v2 обрабатывает prompt асинхронно — ждём завершения генерации.
+        $this->restRequest('POST', "/experimental/session/{$session_id}/wait", new stdClass(), $timeout);
+
+        $assistant = $this->getAssistantResponseV2($session_id, $state, $timeout);
+        if (!$assistant) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (no response)';
+            DebMes("Opencode v2: no assistant response for session={$session_id}", 'opencode');
+            return '';
+        }
+        $this->saveTokensFromResponse(array('data' => $assistant));
+        if ($this->extractApiError(array('data' => $assistant)) !== '') return '';
+        return $this->parseAssistantMessageV2($assistant);
+    }
+
+    function processWithOpencodeV2($message, $timeout = 0, $session_id = '') {
+        $this->getConfig();
+        $this->last_error = '';
+        $timeout = $timeout > 0 ? $timeout : ($this->config['OC_TIMEOUT'] ?: 120);
+        if ($timeout > 300) $timeout = 300;
+
+        if ($session_id) {
+            $response = $this->sendPromptV2($session_id, $message, $timeout);
+            if ($response !== null) {
+                DebMes("Opencode v2: reused session={$session_id}", 'opencode');
+                return $response;
+            }
+            DebMes("Opencode v2: session expired or invalid, creating new one", 'opencode');
+            $session_id = '';
+        }
+
+        $session_body = new stdClass();
+        $model = $this->buildModelRef();
+        if ($model) $session_body->model = $model;
+        // Агент задаёт системный промпт (agents.<id>.system в opencode.jsonc).
+        if (!empty($this->config['OC_AGENT'])) $session_body->agent = $this->config['OC_AGENT'];
+        $result = $this->restRequest('POST', '/session', $session_body, min($timeout, 60));
+        if (!$result || ((int)$result['code'] !== 200 && (int)$result['code'] !== 201)) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (code=' . ($result ? $result['code'] : 'null') . ')';
+            DebMes("Opencode v2: failed to create session (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
+            return '';
+        }
+        $session_id = '';
+        if (($created = $this->apiData($result)) && !empty($created['id'])) {
+            $session_id = $created['id'];
+        }
+        if (!$session_id) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (no session id)';
+            DebMes("Opencode v2: no session id in response", 'opencode');
+            return '';
+        }
+        DebMes("Opencode v2: created session={$session_id}", 'opencode');
+        $this->updateConfig(array('OC_SESSION_ID' => $session_id));
+
+        $response = $this->sendPromptV2($session_id, $message, $timeout);
+        return $response === null ? '' : $response;
+    }
+
     function parseMessageResponse($result) {
         $parts = isset($result['data']['parts']) ? $result['data']['parts'] : array();
         $text_parts = array();
@@ -526,19 +758,7 @@ class opencode extends module {
                 $text_parts[] = isset($part['text']) ? $part['text'] : '';
             }
         }
-        $response = trim(implode("\n", $text_parts));
-        // Обычно «мышление» модели (opencode/big-pickle) приходит отдельными частями
-        // type=reasoning, которые мы пропускаем (см. выше). Но иногда модель пишет
-        // рассуждение прямо в текст ответа и закрывает его служебным тегом
-        // (</think>, </thinking>, </response>, </reasoning>). Всё до последнего
-        // закрывающего тега — это «мышление»: выбрасываем его целиком, иначе оно
-        // попадает в чат и в озвучку (say()).
-        $re_think = 'think(?:ing)?|response|reasoning';
-        $response = preg_replace('#^.*</?\s*(?:' . $re_think . ')\s*>#is', '', $response);
-        // На случай одиночных служебных тегов, оставшихся внутри ответа.
-        $response = trim(preg_replace('#</?\s*(?:' . $re_think . ')\s*>#i', '', $response));
-        DebMes("Opencode API response: " . ($response ? substr($response, 0, 200) : 'EMPTY'), 'opencode');
-        return $response;
+        return $this->cleanAssistantText(trim(implode("\n", $text_parts)));
     }
 
     function saveTokensFromResponse($result) {
@@ -583,13 +803,18 @@ class opencode extends module {
             }
         }
         $checks['opencode_binary'] = $bin_found ? 'ok' : 'missing';
+        // В v2 нет /global/health — признак живости API и версию сервера даёт /api/info.
+        $health_path = $this->isOpencodeV2() ? '/info' : '/global/health';
         if ($short_timeout) {
             $old_timeout = $this->config['OC_TIMEOUT'];
             $this->config['OC_TIMEOUT'] = 5;
-            $health_result = $this->restRequest('GET', '/global/health');
+            $health_result = $this->restRequest('GET', $health_path);
             $this->config['OC_TIMEOUT'] = $old_timeout;
         } else {
-            $health_result = $this->restRequest('GET', '/global/health');
+            $health_result = $this->restRequest('GET', $health_path);
+        }
+        if ($health_result && $health_result['code'] === 200 && !empty($health_result['data']['version'])) {
+            $this->noteRunningVersion($health_result['data']['version']);
         }
         $checks['api'] = ($health_result && $health_result['code'] === 200) ? 'ok' : 'missing';
         return $checks;
@@ -856,7 +1081,7 @@ class opencode extends module {
         $out['TAB_CHAT_VISIBLE'] = ($tab == 'chat') ? '' : 'style="display:none"';
         $out['TAB_WEB_VISIBLE'] = ($tab == 'web' && $auth_enabled && $api_ok) ? '' : 'style="display:none"';
         $out['TAB_WEB_NAV_VISIBLE'] = $auth_enabled && $api_ok ? '' : 'style="display:none"';
-        $out['VERSION'] = '1.0.0';
+        $out['VERSION'] = '2.0.2';
 
         $out['OC_WEB_VISIBLE'] = ($auth_enabled && $api_ok) ? '' : 'style="display:none"';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -905,18 +1130,35 @@ class opencode extends module {
 
         $models = array();
 
-        $result = $this->restRequest('GET', '/provider');
+        $path = $this->isOpencodeV2() ? '/model' : '/provider';
+        $result = $this->restRequest('GET', $path);
         if ($result && $result['code'] === 200) {
-            $providers = isset($result['data']['all']) ? $result['data']['all'] : array();
-            foreach ($providers as $prov) {
-                $provider_id = isset($prov['id']) ? $prov['id'] : '';
-                $provider_models = isset($prov['models']) ? $prov['models'] : array();
-                foreach ($provider_models as $model_id => $model_info) {
-                    $full_id = $provider_id . '/' . $model_id;
-                    $models[] = $full_id;
+            if ($this->isOpencodeV2()) {
+                $list = $this->apiData($result);
+                if (!is_array($list)) $list = array();
+                foreach ($list as $m) {
+                    if (!is_array($m)) continue;
+                    $pid = isset($m['providerID']) ? $m['providerID'] : '';
+                    $mid = isset($m['modelID']) ? $m['modelID'] : (isset($m['id']) ? $m['id'] : '');
+                    if ($pid && $mid) {
+                        $models[] = $pid . '/' . $mid;
+                    } elseif ($mid) {
+                        $models[] = $mid;
+                    }
                 }
+                sort($models);
+            } else {
+                $providers = isset($result['data']['all']) ? $result['data']['all'] : array();
+                foreach ($providers as $prov) {
+                    $provider_id = isset($prov['id']) ? $prov['id'] : '';
+                    $provider_models = isset($prov['models']) ? $prov['models'] : array();
+                    foreach ($provider_models as $model_id => $model_info) {
+                        $full_id = $provider_id . '/' . $model_id;
+                        $models[] = $full_id;
+                    }
+                }
+                sort($models);
             }
-            sort($models);
         }
 
         if (empty($models)) {
@@ -1002,6 +1244,17 @@ class opencode extends module {
 
         if ($this->config['OC_AGENT']) {
             $config['default_agent'] = $this->config['OC_AGENT'];
+        }
+
+        // В v2 системный промпт передаётся не сообщением (поле system в запросе
+        // игнорируется), а параметром system агента в конфиге. В v1 промпт идёт
+        // вместе с каждым сообщением, поэтому блок агента туда не пишем.
+        if ($this->isOpencodeV2()) {
+            $agent = !empty($this->config['OC_AGENT']) ? $this->config['OC_AGENT'] : 'build';
+            $system_prompt = $this->buildSystemPrompt();
+            if ($system_prompt !== '') {
+                $config['agents'][$agent] = array('system' => $system_prompt);
+            }
         }
 
         if (empty($this->config['OC_FULL_ACCESS'])) {
@@ -1109,6 +1362,7 @@ class opencode extends module {
     function setupServiceDropin() {
         $hostname = !empty($this->config['OC_AUTH_ENABLED']) ? '0.0.0.0' : '127.0.0.1';
         $port = $this->getApiPort();
+        $sub = $this->serviceSubcommand();
         $sudo = $this->isRoot() ? '' : 'sudo ';
 
         $service_file = '/etc/systemd/system/opencode-web.service';
@@ -1118,7 +1372,7 @@ class opencode extends module {
             $unit .= "After=network.target\n\n";
             $unit .= "[Service]\n";
             $unit .= "Type=simple\n";
-            $unit .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
+            $unit .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}\n";
             $unit .= "Restart=always\n";
             $unit .= "RestartSec=5\n\n";
             $unit .= "[Install]\n";
@@ -1137,13 +1391,15 @@ class opencode extends module {
         $content .= "Environment=HOME=/var/www\n";
         $content .= "WorkingDirectory=/var/www/html\n";
         $content .= "ExecStart=\n";
-        if (!empty($this->config['OC_AUTH_ENABLED'])) {
+        // v2 всегда требует пароль для HTTP API (даже слушая только 127.0.0.1),
+        // иначе любой запрос получает 401. Поэтому для v2 выставляем его всегда.
+        if (!empty($this->config['OC_AUTH_ENABLED']) || $this->isOpencodeV2()) {
             $login = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
             $password = !empty($this->config['OC_AUTH_PASSWORD']) ? $this->config['OC_AUTH_PASSWORD'] : 'opencode';
             $content .= "Environment=OPENCODE_SERVER_USERNAME=" . $this->systemdEnvValue($login) . "\n";
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . $this->systemdEnvValue($password) . "\n";
         }
-        $content .= "ExecStart=" . $this->opencode_bin . " web --port {$port} --hostname {$hostname}\n";
+        $content .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}\n";
         if (!empty($this->config['OC_MEMORY_LIMIT'])) {
             $mem_max = $this->sanitizeMemoryValue($this->config['OC_MEMORY_MAX'], '768M');
             $mem_high = $this->sanitizeMemoryValue($this->config['OC_MEMORY_HIGH'], '512M');
