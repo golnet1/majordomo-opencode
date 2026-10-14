@@ -508,10 +508,16 @@ class opencode extends module {
             }
         }
         $response = trim(implode("\n", $text_parts));
-        // Модель (opencode/big-pickle) иногда вставляет служебные теги «размышления»
-        // (</thinking>, </response> и т.п.) прямо в текст ответа. Вырезаем их, иначе
-        // они попадают в чат и в озвучку (say()).
-        $response = trim(preg_replace('#</?\s*(?:thinking|think|response|reasoning)\s*>#i', '', $response));
+        // Обычно «мышление» модели (opencode/big-pickle) приходит отдельными частями
+        // type=reasoning, которые мы пропускаем (см. выше). Но иногда модель пишет
+        // рассуждение прямо в текст ответа и закрывает его служебным тегом
+        // (</think>, </thinking>, </response>, </reasoning>). Всё до последнего
+        // закрывающего тега — это «мышление»: выбрасываем его целиком, иначе оно
+        // попадает в чат и в озвучку (say()).
+        $re_think = 'think(?:ing)?|response|reasoning';
+        $response = preg_replace('#^.*</?\s*(?:' . $re_think . ')\s*>#is', '', $response);
+        // На случай одиночных служебных тегов, оставшихся внутри ответа.
+        $response = trim(preg_replace('#</?\s*(?:' . $re_think . ')\s*>#i', '', $response));
         DebMes("Opencode API response: " . ($response ? substr($response, 0, 200) : 'EMPTY'), 'opencode');
         return $response;
     }
