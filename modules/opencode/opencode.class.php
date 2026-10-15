@@ -10,6 +10,7 @@ class opencode extends module {
     var $api_pass = 'opencode';
     var $last_error = '';
     var $is_v2_cache = null;
+    var $mcp_python_cache = null;
 
     function __construct() {
         $this->name = 'opencode';
@@ -184,12 +185,26 @@ class opencode extends module {
 
     function binaryVersion($path) {
         if (!is_string($path) || $path === '' || !file_exists($path)) return '';
+        // Запуск бинарника opencode стоит ~0.5 c (это большой bundled-бинарь),
+        // а версия нужна на каждой отрисовке страницы модуля и в опросе статуса.
+        // Кэшируем результат по сигнатуре файла (путь+размер+mtime): обновление
+        // или замена бинарника меняет сигнатуру и автоматически сбрасывает кэш.
+        $sig = $path . ':' . @filesize($path) . ':' . @filemtime($path);
+        $cache_file = DIR_MODULES . $this->name . '/binver_cache.json';
+        $cache = @json_decode((string)@file_get_contents($cache_file), true);
+        if (is_array($cache) && isset($cache['sig'], $cache['v']) && $cache['sig'] === $sig) {
+            return (string)$cache['v'];
+        }
         // Сразу после установки/обновления бинарник может не успеть ответить.
         // Делаем несколько попыток, иначе v2 ошибочно принимается за v1 и в
         // systemd-юнит попадает команда 'web' вместо 'serve' (сервис падает).
         for ($attempt = 0; $attempt < 3; $attempt++) {
             $raw = trim($this->runBinaryProbe($path, '--version'));
-            if (preg_match('/\d+\.\d+\.\d+/', $raw, $m)) return $m[0];
+            if (preg_match('/\d+\.\d+\.\d+/', $raw, $m)) {
+                @file_put_contents($cache_file, json_encode(array('sig' => $sig, 'v' => $m[0])));
+                @chmod($cache_file, 0666);
+                return $m[0];
+            }
             if ($attempt < 2) usleep(300000);
         }
         return '';
@@ -1901,22 +1916,41 @@ class opencode extends module {
     }
 
     function getMcpPython() {
+        if ($this->mcp_python_cache !== null) return $this->mcp_python_cache;
         $venv_python = $this->findMcpVenvPython();
         if ($venv_python) {
-            exec("cd /tmp && " . $venv_python . " -c 'import mcp' 2>&1", $out, $rc);
+            // Наличие пакета проверяем без тяжёлого импорта (~0.1 c против
+            // ~2.4 c): функция вызывается для каждого MCP-сервера при записи
+            // конфига, а сам импорт mcp и так делает запускаемый процесс.
+            exec("cd /tmp && " . $venv_python . " -c 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec(\"mcp\") else 1)' 2>&1", $out, $rc);
             if ($rc === 0) {
+                $this->mcp_python_cache = $venv_python;
                 return $venv_python;
             }
         }
+        $this->mcp_python_cache = 'python3';
         return 'python3';
     }
 
-    function checkPythonPackage($package) {
-        exec("cd /tmp && python3 -c 'import " . $package . "' 2>&1", $output, $return_var);
+    /**
+     * Есть ли Python-пакет.
+     *
+     * По умолчанию пакет НЕ импортируется: `import mcp` тянет pydantic/httpx/
+     * anyio и занимает ~4 секунды, а на странице модуля и в опросе статуса эта
+     * проверка выполняется постоянно — из-за неё страницы открывались по 4-5 с.
+     * Быстрая проверка через importlib.util.find_spec находит пакет за ~0.1 с.
+     * Полноценный импорт ($deep = true) нужен только после установки пакета,
+     * чтобы убедиться, что он действительно рабочий.
+     */
+    function checkPythonPackage($package, $deep = false) {
+        $check = $deep
+            ? "import " . $package
+            : 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("' . $package . '") else 1)';
+        exec("cd /tmp && python3 -c '" . $check . "' 2>&1", $output, $return_var);
         if ($return_var === 0) return true;
         $venv_python = $this->findMcpVenvPython();
         if ($venv_python) {
-            exec("cd /tmp && " . $venv_python . " -c 'import " . $package . "' 2>&1", $output, $return_var);
+            exec("cd /tmp && " . $venv_python . " -c '" . $check . "' 2>&1", $output, $return_var);
             if ($return_var === 0) return true;
         }
         return false;

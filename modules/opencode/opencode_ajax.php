@@ -91,7 +91,7 @@ if ($op == 'send_message') {
 } elseif ($op == 'install_mcp_package') {
     ob_clean();
     $error_msg = $m->installPythonDeps();
-    $ok = $m->checkPythonPackage('mcp');
+    $ok = $m->checkPythonPackage('mcp', true);
     echo json_encode(array('success' => $ok, 'error' => $error_msg ?: null));
     flush();
     exit;
