@@ -182,10 +182,15 @@ class opencode extends module {
 
     function getCurrentVersion() {
         $cached = isset($this->config['OC_RUNNING_VERSION']) ? trim((string)$this->config['OC_RUNNING_VERSION']) : '';
-        if ($cached !== '') return $cached;
+        // Кэш версии действителен, только пока на месте сам бинарник. Если opencode
+        // удалили (кнопкой «Удалить» или вручную из системы), старую версию не
+        // показываем и сбрасываем устаревший кэш.
+        if ($cached !== '' && file_exists($this->opencode_bin)) return $cached;
         $detected = $this->getOpencodeVersion();
         if ($detected !== '') {
             $this->updateConfig(array('OC_RUNNING_VERSION' => $detected));
+        } elseif ($cached !== '') {
+            $this->updateConfig(array('OC_RUNNING_VERSION' => null));
         }
         return $detected;
     }
@@ -1866,8 +1871,16 @@ class opencode extends module {
         $this->ensureDirExists($this->opencode_config_dir);
         file_put_contents($this->opencode_config_dir . '/opencode.jsonc', '{}');
         DebMes("Opencode: removing binary", 'opencode');
-        exec("{$sudo}rm -f " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
-        $this->updateConfig(array('OC_REMOVED' => 1));
+        // Удаляем все известные копии бинарника, а не только предпочтительную:
+        // иначе оставшаяся версия (например, старая v1) снова найдётся, и модуль
+        // снова покажет версию.
+        $paths = $this->getBinaryCandidates();
+        if (!empty($this->opencode_bin)) $paths[] = $this->opencode_bin;
+        foreach (array_unique($paths) as $path) {
+            exec("{$sudo}rm -f " . escapeshellarg($path) . " 2>/dev/null");
+        }
+        $this->is_v2_cache = null;
+        $this->updateConfig(array('OC_REMOVED' => 1, 'OC_RUNNING_VERSION' => null));
         DebMes("Opencode: remove complete", 'opencode');
     }
 
