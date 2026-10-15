@@ -36,7 +36,14 @@ class opencode extends module {
             $port = $this->getApiPort();
             $url = "http://127.0.0.1:{$port}{$path}";
         }
-        $user = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
+        // OpenCode v2 требует Basic-авторизацию строго с логином 'opencode'
+        // (переменную OPENCODE_SERVER_USERNAME сервер не читает, пароль берёт из
+        // OPENCODE_SERVER_PASSWORD). Для v1 логин берём из настроек.
+        if ($this->isOpencodeV2()) {
+            $user = 'opencode';
+        } else {
+            $user = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
+        }
         $pass = !empty($this->config['OC_AUTH_PASSWORD']) ? $this->config['OC_AUTH_PASSWORD'] : 'opencode';
         $auth = base64_encode($user . ':' . $pass);
         $headers = array(
@@ -1680,6 +1687,7 @@ class opencode extends module {
         $new_bin = $this->findOpencodeBinary();
         if (file_exists($new_bin)) {
             $this->opencode_bin = $new_bin;
+            $this->is_v2_cache = null;
             DebMes("Opencode binary found at: " . $this->opencode_bin, 'opencode');
             exec("{$sudo}chmod 755 " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
             $this->updateConfig(array('OC_INSTALL_ATTEMPT' => null));
@@ -1749,6 +1757,9 @@ class opencode extends module {
         }
 
         $this->opencode_bin = $this->findOpencodeBinary();
+        // Сбрасываем кэш версии: после обновления подкоманда сервиса может
+        // смениться (web -> serve), и setupServiceDropin должен это увидеть.
+        $this->is_v2_cache = null;
         $new_version = $this->getOpencodeVersion();
 
         if ($old_version !== '' && $new_version === $old_version) {
