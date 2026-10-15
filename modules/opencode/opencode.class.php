@@ -138,13 +138,57 @@ class opencode extends module {
     /**
      * Версия конкретного бинарника opencode ('' если неизвестна/недоступна).
      */
+    /**
+     * Запускает бинарник opencode с временным writable HOME/XDG.
+     *
+     * Бинарник v2 при старте пишет лог в ~/.local/share/opencode. Сервис
+     * запущен от root и создаёт там root-овые файлы, поэтому из-под
+     * веб-пользователя (www-data) `opencode --version` падает с EACCES и
+     * вернуть версию не удаётся (модуль принимает v2 за v1). Подменяем HOME
+     * на временный каталог — версия и подкоманды видны из любого контекста.
+     */
+    function runBinaryProbe($path, $args, $want_stderr = false) {
+        if (!is_string($path) || $path === '' || !file_exists($path)) return '';
+        $redirect = $want_stderr ? ' 2>&1' : ' 2>/dev/null';
+        $base = function_exists('sys_get_temp_dir') ? sys_get_temp_dir() : '/tmp';
+        $dir = rtrim($base, '/') . '/ocprobe-' . substr(md5(uniqid('', true)), 0, 10);
+        if (!@mkdir($dir, 0777, true)) {
+            return (string)shell_exec(escapeshellarg($path) . ' ' . $args . $redirect);
+        }
+        @chmod($dir, 0777);
+        $env = 'HOME=' . escapeshellarg($dir)
+             . ' XDG_DATA_HOME=' . escapeshellarg($dir . '/data')
+             . ' XDG_STATE_HOME=' . escapeshellarg($dir . '/state')
+             . ' XDG_CACHE_HOME=' . escapeshellarg($dir . '/cache')
+             . ' XDG_CONFIG_HOME=' . escapeshellarg($dir . '/config');
+        $raw = (string)shell_exec($env . ' ' . escapeshellarg($path) . ' ' . $args . $redirect);
+        $this->removeDirRecursive($dir);
+        return $raw;
+    }
+
+    function removeDirRecursive($dir) {
+        if (!is_dir($dir)) {
+            @unlink($dir);
+            return;
+        }
+        $items = @scandir($dir);
+        if ($items === false) return;
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') continue;
+            $p = $dir . '/' . $item;
+            if (is_dir($p) && !is_link($p)) $this->removeDirRecursive($p);
+            else @unlink($p);
+        }
+        @rmdir($dir);
+    }
+
     function binaryVersion($path) {
         if (!is_string($path) || $path === '' || !file_exists($path)) return '';
         // Сразу после установки/обновления бинарник может не успеть ответить.
         // Делаем несколько попыток, иначе v2 ошибочно принимается за v1 и в
         // systemd-юнит попадает команда 'web' вместо 'serve' (сервис падает).
         for ($attempt = 0; $attempt < 3; $attempt++) {
-            $raw = trim((string)shell_exec(escapeshellarg($path) . ' --version 2>/dev/null'));
+            $raw = trim($this->runBinaryProbe($path, '--version'));
             if (preg_match('/\d+\.\d+\.\d+/', $raw, $m)) return $m[0];
             if ($attempt < 2) usleep(300000);
         }
@@ -157,7 +201,7 @@ class opencode extends module {
      */
     function binarySupportsServe($path) {
         if (!is_string($path) || $path === '' || !file_exists($path)) return false;
-        $raw = (string)shell_exec(escapeshellarg($path) . ' --help 2>&1');
+        $raw = $this->runBinaryProbe($path, '--help', true);
         return (bool)preg_match('/^\s*serve\b/m', $raw);
     }
 
@@ -1617,6 +1661,16 @@ class opencode extends module {
             DebMes("Opencode: enable service failed (rc={$rc}): " . implode(' ', $out), 'opencode');
         }
 
+        // Сервис запущен от root и создаёт в state-каталоге root-овые файлы,
+        // из-за чего веб-пользователь (www-data) не может запустить бинарник
+        // (`opencode --version` -> EACCES). Возвращаем владельца веб-пользователю,
+        // иначе модуль не определит версию и будет считать v2 за v1.
+        $web_user = 'www-data';
+        exec("{$sudo}chown -R {$web_user}:{$web_user} /var/www/.local/share/opencode /var/www/.config/opencode 2>&1", $out, $rc);
+        if ($rc !== 0) {
+            DebMes("Opencode: chown state dirs failed (rc={$rc}): " . implode(' ', $out), 'opencode');
+        }
+
         DebMes("Opencode: service unit + drop-in updated", 'opencode');
         return true;
     }
@@ -1919,6 +1973,13 @@ class opencode extends module {
         $this->cleanNpmUpgradeLeftovers();
 
         $old_version = $this->getOpencodeVersion();
+
+        // Флаг --major есть только у OpenCode 1 (переход на 2). В OpenCode 2
+        // его нет — CLI вернёт "Unrecognized flag: --major". Поэтому передаём
+        // --major лишь тогда, когда установлена именно v1.
+        if ($major && $this->isOpencodeV2()) {
+            $major = false;
+        }
 
         $cmd = escapeshellarg($this->opencode_bin) . ' upgrade';
         if ($target !== '') $cmd .= ' ' . escapeshellarg($target);
