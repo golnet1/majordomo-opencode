@@ -1130,7 +1130,7 @@ class opencode extends module {
         $out['TAB_CHAT_VISIBLE'] = ($tab == 'chat') ? '' : 'style="display:none"';
         $out['TAB_WEB_VISIBLE'] = ($tab == 'web' && $auth_enabled && $api_ok) ? '' : 'style="display:none"';
         $out['TAB_WEB_NAV_VISIBLE'] = $auth_enabled && $api_ok ? '' : 'style="display:none"';
-        $out['VERSION'] = '2.0.3';
+        $out['VERSION'] = '2.0.4';
 
         $out['OC_WEB_VISIBLE'] = ($auth_enabled && $api_ok) ? '' : 'style="display:none"';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
