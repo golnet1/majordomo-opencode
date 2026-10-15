@@ -317,6 +317,88 @@ class opencode extends module {
     }
 
     /**
+     * Карта статусов MCP-серверов: array('majordomo' => 'connected', ...).
+     */
+    function getMcpStatusMap() {
+        $map = array();
+        foreach ($this->getMcpStatuses() as $server) {
+            $map[$server['name']] = $server['status'];
+        }
+        return $map;
+    }
+
+    /**
+     * MCP-серверы, которые модуль ожидает увидеть подключёнными в OpenCode.
+     */
+    function getExpectedMcpServers() {
+        $names = array();
+        if (!empty($this->config['OC_MAJORDOMO_MCP']) && is_dir(DIR_MODULES . 'mcp')) {
+            $names[] = 'majordomo';
+        }
+        if (!empty($this->config['OC_MCP_SERVERS'])) {
+            $servers = json_decode($this->config['OC_MCP_SERVERS'], true);
+            if (is_array($servers)) {
+                foreach ($servers as $server) {
+                    if (!empty($server['enabled']) && !empty($server['name'])) {
+                        $names[] = $server['name'];
+                    }
+                }
+            }
+        }
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * В OpenCode 2 инструменты MCP попадают к модели через динамический
+     * «Code Mode»-каталог. Пока MCP-сервер не в статусе connected, его
+     * инструментов в каталоге нет, и ассистент отвечает, что управление
+     * умным домом недоступно (есть только музыка и служебные функции).
+     * MCP-соединение периодически отваливается: stdio-процесс завершился,
+     * opencode закрыл простаивающее соединение, сервис перечитал конфиг и
+     * перезапустился. Поэтому перед каждым запросом поднимаем отключённые
+     * MCP-серверы и ждём, пока они перейдут в connected.
+     */
+    function ensureMcpConnected($wait_seconds = 8) {
+        if (!$this->isOpencodeV2()) return true;
+        $expected = $this->getExpectedMcpServers();
+        if (!$expected) return true;
+
+        $statuses = $this->getMcpStatusMap();
+        $down = array();
+        $missing = array();
+        foreach ($expected as $name) {
+            if (!isset($statuses[$name])) {
+                $missing[] = $name;
+            } elseif ($statuses[$name] !== 'connected') {
+                $down[] = $name;
+            }
+        }
+        if ($missing) {
+            // Сервера нет в загруженном конфиге opencode — API connect вернёт 404.
+            DebMes("Opencode v2: MCP отсутствует в конфиге opencode (" . implode(', ', $missing) . ")", 'opencode');
+        }
+        if (!$down) return !$missing;
+
+        foreach ($down as $name) {
+            $result = $this->restRequest('POST', '/experimental/mcp/' . rawurlencode($name) . '/connect', new stdClass(), 15);
+            DebMes("Opencode v2: MCP '{$name}' не подключён, отправляю connect (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
+        }
+
+        $deadline = time() + max(1, (int)$wait_seconds);
+        while (time() < $deadline) {
+            usleep(400000);
+            $statuses = $this->getMcpStatusMap();
+            $all_up = true;
+            foreach ($down as $name) {
+                if (!isset($statuses[$name]) || $statuses[$name] !== 'connected') { $all_up = false; break; }
+            }
+            if ($all_up) return !$missing;
+        }
+        DebMes("Opencode v2: MCP не подключился за {$wait_seconds}s (" . implode(', ', $down) . ")", 'opencode');
+        return false;
+    }
+
+    /**
      * saveConfig() rewrites the whole serialized array from a snapshot taken by
      * getConfig(). Long-lived callers (the background worker, the status poll)
      * therefore overwrite whatever the admin saved in the meantime, which is how
@@ -961,6 +1043,9 @@ class opencode extends module {
         $this->last_error = '';
         $timeout = $timeout > 0 ? $timeout : ($this->config['OC_TIMEOUT'] ?: 120);
         if ($timeout > 300) $timeout = 300;
+
+        // Без подключённого MCP у модели нет инструментов умного дома.
+        $this->ensureMcpConnected();
 
         if ($session_id) {
             $response = $this->sendPromptV2($session_id, $message, $timeout);
