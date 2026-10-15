@@ -89,6 +89,7 @@ $dictionary = array(
     'OPENCODE_HISTORY_CLEARED' => 'История очищена. Чем могу помочь?',
     'OPENCODE_HOW_CAN_I_HELP' => 'Чем могу помочь?',
     'OPENCODE_CONNECT_ERROR' => 'Ошибка подключения. Попробуйте снова.',
+    'OPENCODE_NOT_INSTALLED' => 'OpenCode не установлен.',
     'OPENCODE_SERVER_ERROR' => 'Неверный ответ от сервера',
     'OPENCODE_UNKNOWN_ERROR' => 'Неизвестная ошибка',
     'OPENCODE_CLEAR_CONFIRM' => 'Очистить историю чата?',

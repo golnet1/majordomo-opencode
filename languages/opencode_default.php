@@ -89,6 +89,7 @@ $dictionary = array(
     'OPENCODE_HISTORY_CLEARED' => 'History cleared. How can I help you?',
     'OPENCODE_HOW_CAN_I_HELP' => 'How can I help you?',
     'OPENCODE_CONNECT_ERROR' => 'Connection error. Please try again.',
+    'OPENCODE_NOT_INSTALLED' => 'OpenCode is not installed.',
     'OPENCODE_SERVER_ERROR' => 'Invalid response from server',
     'OPENCODE_UNKNOWN_ERROR' => 'Unknown error',
     'OPENCODE_CLEAR_CONFIRM' => 'Clear chat history?',

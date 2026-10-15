@@ -28,7 +28,30 @@ class opencode extends module {
         return $this->config['OC_PORT'] ? (int)$this->config['OC_PORT'] : 4096;
     }
 
+    /**
+     * Установлен ли opencode локально (либо настроен удалённый сервер). Пока
+     * бинарника нет, модуль не должен никуда подключаться: иначе в лог каждые
+     * несколько секунд сыпется "Failed to connect to 127.0.0.1 port 4096".
+     */
+    function isOpencodeInstalled() {
+        if (!empty($this->config['OC_REMOTE_ENABLED']) && !empty($this->config['OC_REMOTE_URL'])) {
+            return true;
+        }
+        if (!empty($this->opencode_bin) && file_exists($this->opencode_bin)) {
+            return true;
+        }
+        foreach ($this->getBinaryCandidates() as $path) {
+            if (file_exists($path)) return true;
+        }
+        return false;
+    }
+
     function restRequest($method, $path, $body = null, $timeout = 0) {
+        // OpenCode не установлен — не пытаемся подключиться к API вообще.
+        if (!$this->isOpencodeInstalled()) {
+            $this->last_error = LANG_OPENCODE_NOT_INSTALLED;
+            return null;
+        }
         $path = $this->apiPath($path);
         if (!empty($this->config['OC_REMOTE_ENABLED']) && !empty($this->config['OC_REMOTE_URL'])) {
             $url = rtrim($this->config['OC_REMOTE_URL'], '/') . $path;
@@ -533,6 +556,11 @@ class opencode extends module {
     function processWithOpencode($message, $timeout = 0) {
         $this->getConfig();
         $this->last_error = '';
+        // Не установлен opencode — не шлём запрос и не пишем "server error".
+        if (!$this->isOpencodeInstalled()) {
+            $this->last_error = LANG_OPENCODE_NOT_INSTALLED;
+            return '';
+        }
         $session_id = isset($this->config['OC_SESSION_ID']) ? $this->config['OC_SESSION_ID'] : '';
 
         if ($this->isOpencodeV2()) {
