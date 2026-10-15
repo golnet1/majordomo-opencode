@@ -70,6 +70,7 @@ $dictionary = array(
     'OPENCODE_REQUIRE_AUTH' => 'Require authorization',
     'OPENCODE_AUTH_HELP' => 'When enabled, opencode web UI binds to 0.0.0.0 (all interfaces) and requires a password. Use these credentials to access the AI chat from any computer on the network at http://server-address:4096',
     'OPENCODE_AUTH_LOGIN' => 'Username',
+    'OPENCODE_AUTH_LOGIN_V2_HELP' => 'In OpenCode 2 the username is always "opencode" (the server hardcodes it; only the password is configurable), so this field is locked.',
     'OPENCODE_AUTH_PASSWORD' => 'Password',
     'OPENCODE_AUTH_NO_HELP' => 'When disabled, opencode web UI binds to 127.0.0.1 (localhost only). Only accessible from this server.',
     'OPENCODE_PORT' => 'Port',

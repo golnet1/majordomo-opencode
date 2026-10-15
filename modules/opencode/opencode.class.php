@@ -937,7 +937,7 @@ class opencode extends module {
                 }
                 $this->config['OC_PORT'] = $new_port;
                 $this->config['OC_AUTH_ENABLED'] = gr('oc_auth_enabled') ? 1 : 0;
-                $this->config['OC_AUTH_LOGIN'] = gr('oc_auth_login');
+                $this->config['OC_AUTH_LOGIN'] = $this->isOpencodeV2() ? 'opencode' : gr('oc_auth_login');
                 $this->config['OC_AUTH_PASSWORD'] = gr('oc_auth_password');
                 $old_full_access = isset($this->config['OC_FULL_ACCESS']) ? $this->config['OC_FULL_ACCESS'] : 1;
                 $this->config['OC_FULL_ACCESS'] = gr('oc_full_access') ? 1 : 0;
@@ -1054,7 +1054,8 @@ class opencode extends module {
         } else {
             $out['OC_SESSION_TOKENS_DISPLAY'] = '—';
         }
-        $out['OC_AUTH_LOGIN'] = $this->config['OC_AUTH_LOGIN'] ?: '';
+        $out['OC_IS_V2'] = $this->isOpencodeV2() ? '1' : '0';
+        $out['OC_AUTH_LOGIN'] = $this->isOpencodeV2() ? 'opencode' : ($this->config['OC_AUTH_LOGIN'] ?: '');
         $out['OC_AUTH_PASSWORD'] = $this->config['OC_AUTH_PASSWORD'] ?: '';
 
         $out['OC_MEMORY_LIMIT'] = isset($this->config['OC_MEMORY_LIMIT']) ? $this->config['OC_MEMORY_LIMIT'] : '0';
@@ -1401,7 +1402,8 @@ class opencode extends module {
         // v2 всегда требует пароль для HTTP API (даже слушая только 127.0.0.1),
         // иначе любой запрос получает 401. Поэтому для v2 выставляем его всегда.
         if (!empty($this->config['OC_AUTH_ENABLED']) || $this->isOpencodeV2()) {
-            $login = !empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode';
+            // В v2 логин жёстко 'opencode' (сервер читает только пароль).
+            $login = $this->isOpencodeV2() ? 'opencode' : (!empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode');
             $password = !empty($this->config['OC_AUTH_PASSWORD']) ? $this->config['OC_AUTH_PASSWORD'] : 'opencode';
             $content .= "Environment=OPENCODE_SERVER_USERNAME=" . $this->systemdEnvValue($login) . "\n";
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . $this->systemdEnvValue($password) . "\n";

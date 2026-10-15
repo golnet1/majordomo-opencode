@@ -285,7 +285,8 @@
                             <div class="form-group">
                                 <label class="control-label col-md-3"><#LANG_OPENCODE_AUTH_LOGIN#></label>
                                 <div class="col-md-6">
-                                    <input type="text" name="oc_auth_login" class="form-control" value="[#OC_AUTH_LOGIN#]">
+                                    <input type="text" name="oc_auth_login" class="form-control" value="[#OC_AUTH_LOGIN#]"[#if OC_IS_V2="1"#] readonly style="background-color:#eee;"[#endif#]>
+                                    <span class="help-block" id="oc_auth_login_v2_help"[#if OC_IS_V2!="1"#] style="display:none;"[#endif#]><#LANG_OPENCODE_AUTH_LOGIN_V2_HELP#></span>
                                 </div>
                             </div>
                             <div class="form-group">
