@@ -593,35 +593,29 @@ function ocUpdateStatus() {
             var mr = document.getElementById('oc_mcp_status_row');
             if (mc && mr) {
                 var pw = document.getElementById('oc_mcp_pkg_warning');
-            if (pw) {
-                if (r.mcp_python_ok) {
-                    pw.style.display = 'none';
-                } else {
-                    pw.style.display = 'block';
+                if (pw) {
+                    pw.style.display = r.mcp_python_ok ? 'none' : 'block';
                 }
-            }
-            if (r.mcp && typeof r.mcp === 'object') {
-                    var keys = Object.keys(r.mcp);
-                    if (keys.length > 0) {
-                        mr.style.display = '';
-                        mc.innerHTML = '';
-                        for (var i = 0; i < keys.length; i++) {
-                            var name = keys[i];
-                            var status = r.mcp[name] && r.mcp[name].status;
-                            var ok = status === 'connected';
-                            var w = document.createElement('span');
-                            w.style.cssText = 'margin-right:18px;white-space:nowrap;';
-                            var d = document.createElement('span');
-                            d.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (ok ? '#5cb85c' : '#d9534f') + ';margin-right:5px;vertical-align:middle;';
-                            var l = document.createElement('span');
-                            l.style.cssText = 'vertical-align:middle;font-size:13px;';
-                            l.textContent = name;
-                            w.appendChild(d);
-                            w.appendChild(l);
-                            mc.appendChild(w);
-                        }
-                    } else {
-                        mr.style.display = 'none';
+                // r.mcp — список серверов: [{name, status}]. Именно в таком виде
+                // их отдаёт opencode_ajax.php (getMcpStatuses()), потому что ответ
+                // API v2 /mcp — это конверт {"location": ..., "data": [...]}.
+                var servers = Array.isArray(r.mcp) ? r.mcp : [];
+                if (servers.length > 0) {
+                    mr.style.display = '';
+                    mc.innerHTML = '';
+                    for (var i = 0; i < servers.length; i++) {
+                        var name = servers[i].name || '';
+                        var ok = servers[i].status === 'connected';
+                        var w = document.createElement('span');
+                        w.style.cssText = 'margin-right:18px;white-space:nowrap;';
+                        var d = document.createElement('span');
+                        d.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (ok ? '#5cb85c' : '#d9534f') + ';margin-right:5px;vertical-align:middle;';
+                        var l = document.createElement('span');
+                        l.style.cssText = 'vertical-align:middle;font-size:13px;';
+                        l.textContent = name;
+                        w.appendChild(d);
+                        w.appendChild(l);
+                        mc.appendChild(w);
                     }
                 } else {
                     mr.style.display = 'none';

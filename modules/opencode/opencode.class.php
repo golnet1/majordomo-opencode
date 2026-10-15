@@ -271,6 +271,44 @@ class opencode extends module {
     }
 
     /**
+     * Статусы MCP-серверов в едином виде: array(array('name' => ..., 'status' => ...)).
+     *
+     * В v2 ответ /mcp — это конверт {"location": {...}, "data": [{"name": ...,
+     * "status": {"status": "connected"}}]}, в v1 — объект, где ключ — имя сервера.
+     * Раньше конверт v2 попадал в шаблон как есть, и вместо серверов выводились
+     * строки "location" и "data" с красными индикаторами.
+     */
+    function getMcpStatuses() {
+        $result = $this->restRequest('GET', '/mcp');
+        if (!$result || $result['code'] !== 200) return array();
+        $data = $this->apiData($result);
+        if (!is_array($data)) return array();
+        $servers = array();
+        foreach ($data as $key => $item) {
+            $name = '';
+            $status = '';
+            if (is_array($item)) {
+                if (isset($item['name'])) {
+                    $name = $item['name'];
+                } elseif (is_string($key)) {
+                    $name = $key;
+                }
+                if (isset($item['status'])) {
+                    $status = is_array($item['status'])
+                        ? (isset($item['status']['status']) ? $item['status']['status'] : '')
+                        : $item['status'];
+                }
+            } elseif (is_string($item) && is_string($key)) {
+                $name = $key;
+                $status = $item;
+            }
+            if ($name === '') continue;
+            $servers[] = array('name' => (string)$name, 'status' => (string)$status);
+        }
+        return $servers;
+    }
+
+    /**
      * saveConfig() rewrites the whole serialized array from a snapshot taken by
      * getConfig(). Long-lived callers (the background worker, the status poll)
      * therefore overwrite whatever the admin saved in the meantime, which is how
