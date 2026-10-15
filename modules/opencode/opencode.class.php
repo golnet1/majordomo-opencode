@@ -1097,7 +1097,7 @@ class opencode extends module {
         $out['TAB_CHAT_VISIBLE'] = ($tab == 'chat') ? '' : 'style="display:none"';
         $out['TAB_WEB_VISIBLE'] = ($tab == 'web' && $auth_enabled && $api_ok) ? '' : 'style="display:none"';
         $out['TAB_WEB_NAV_VISIBLE'] = $auth_enabled && $api_ok ? '' : 'style="display:none"';
-        $out['VERSION'] = '2.0.2';
+        $out['VERSION'] = '2.0.3';
 
         $out['OC_WEB_VISIBLE'] = ($auth_enabled && $api_ok) ? '' : 'style="display:none"';
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -1375,6 +1375,38 @@ class opencode extends module {
         return $value;
     }
 
+    /**
+     * Случайный пароль для локального HTTP API OpenCode.
+     */
+    function generateRandomPassword() {
+        if (function_exists('random_bytes')) {
+            try {
+                return bin2hex(random_bytes(16));
+            } catch (Exception $e) {
+            }
+        }
+        return substr(str_shuffle(str_repeat('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 8)), 0, 32);
+    }
+
+    /**
+     * Пароль для HTTP API OpenCode. В v2 пароль обязателен всегда (даже когда
+     * сервер слушает только 127.0.0.1). Если авторизация выключена и пароль не
+     * задан, генерируем случайный и сохраняем его — вместо дефолтного
+     * 'opencode'. При включённой авторизации пароль задаёт пользователь.
+     */
+    function ensureAuthPassword() {
+        if (!empty($this->config['OC_AUTH_PASSWORD'])) {
+            return $this->config['OC_AUTH_PASSWORD'];
+        }
+        if ($this->isOpencodeV2() && empty($this->config['OC_AUTH_ENABLED'])) {
+            $generated = $this->generateRandomPassword();
+            $this->updateConfig(array('OC_AUTH_PASSWORD' => $generated));
+            DebMes("Opencode: сгенерирован случайный пароль для локального API OpenCode 2", 'opencode');
+            return $generated;
+        }
+        return 'opencode';
+    }
+
     function setupServiceDropin() {
         $hostname = !empty($this->config['OC_AUTH_ENABLED']) ? '0.0.0.0' : '127.0.0.1';
         $port = $this->getApiPort();
@@ -1412,7 +1444,7 @@ class opencode extends module {
         if (!empty($this->config['OC_AUTH_ENABLED']) || $this->isOpencodeV2()) {
             // В v2 логин жёстко 'opencode' (сервер читает только пароль).
             $login = $this->isOpencodeV2() ? 'opencode' : (!empty($this->config['OC_AUTH_LOGIN']) ? $this->config['OC_AUTH_LOGIN'] : 'opencode');
-            $password = !empty($this->config['OC_AUTH_PASSWORD']) ? $this->config['OC_AUTH_PASSWORD'] : 'opencode';
+            $password = $this->ensureAuthPassword();
             $content .= "Environment=OPENCODE_SERVER_USERNAME=" . $this->systemdEnvValue($login) . "\n";
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . $this->systemdEnvValue($password) . "\n";
         }
