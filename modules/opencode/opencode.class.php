@@ -287,7 +287,9 @@ class opencode extends module {
      * строки "location" и "data" с красными индикаторами.
      */
     function getMcpStatuses() {
-        $result = $this->restRequest('GET', '/mcp');
+        // Короткий таймаут: статус MCP опрашивается каждые 5 c со страницы
+        // модуля и не должен надолго занимать воркер Apache.
+        $result = $this->restRequest('GET', '/mcp', null, 5);
         if (!$result || $result['code'] !== 200) return array();
         $data = $this->apiData($result);
         if (!is_array($data)) return array();
@@ -453,7 +455,7 @@ class opencode extends module {
      * откуда ставится бинарник. Ответ кэшируется в файле, чтобы не обращаться
      * к сети на каждом открытии модуля: с версией — 6 часов, без — 15 минут.
      */
-    function getLatestOpencodeVersion() {
+    function getLatestOpencodeVersion($allow_network = true) {
         $file = sys_get_temp_dir() . '/opencode-update.json';
         $data = @json_decode((string)@file_get_contents($file), true);
         if (is_array($data) && isset($data['t'])) {
@@ -462,13 +464,17 @@ class opencode extends module {
                 return isset($data['latest']) ? (string)$data['latest'] : '';
             }
         }
+        // Из опроса статуса (каждые 5 c) сеть не трогаем: только кэш.
+        if (!$allow_network) {
+            return (is_array($data) && isset($data['latest'])) ? (string)$data['latest'] : '';
+        }
         $latest = '';
         if (function_exists('curl_init')) {
             $ch = curl_init('https://registry.npmjs.org/opencode-ai/latest');
             curl_setopt_array($ch, array(
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 8,
-                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 4,
+                CURLOPT_CONNECTTIMEOUT => 3,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_USERAGENT => 'MajorDoMo-opencode',
             ));
@@ -494,7 +500,7 @@ class opencode extends module {
      * версии 2.x берём из git-тегов основного репозитория на GitHub (v2.*).
      * Ответ кэшируется так же, как для 1.x.
      */
-    function getLatestOpencodeV2() {
+    function getLatestOpencodeV2($allow_network = true) {
         $file = sys_get_temp_dir() . '/opencode-update-v2.json';
         $data = @json_decode((string)@file_get_contents($file), true);
         if (is_array($data) && isset($data['t'])) {
@@ -503,13 +509,17 @@ class opencode extends module {
                 return isset($data['latest']) ? (string)$data['latest'] : '';
             }
         }
+        // Из опроса статуса (каждые 5 c) сеть не трогаем: только кэш.
+        if (!$allow_network) {
+            return (is_array($data) && isset($data['latest'])) ? (string)$data['latest'] : '';
+        }
         $latest = '';
         if (function_exists('curl_init')) {
             $ch = curl_init('https://api.github.com/repos/anomalyco/opencode/git/matching-refs/tags/v2.');
             curl_setopt_array($ch, array(
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 10,
-                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 4,
+                CURLOPT_CONNECTTIMEOUT => 3,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_USERAGENT => 'MajorDoMo-opencode',
                 CURLOPT_HTTPHEADER => array('Accept: application/vnd.github+json'),
@@ -1141,14 +1151,12 @@ class opencode extends module {
         $checks['opencode_binary'] = $bin_found ? 'ok' : 'missing';
         // В v2 нет /global/health — признак живости API и версию сервера даёт /api/info.
         $health_path = $this->isOpencodeV2() ? '/info' : '/global/health';
-        if ($short_timeout) {
-            $old_timeout = $this->config['OC_TIMEOUT'];
-            $this->config['OC_TIMEOUT'] = 5;
-            $health_result = $this->restRequest('GET', $health_path);
-            $this->config['OC_TIMEOUT'] = $old_timeout;
-        } else {
-            $health_result = $this->restRequest('GET', $health_path);
-        }
+        // Проверка живости API вызывается из веб-запросов (страница модуля и
+        // опрос статуса каждые 5 c). Ограничиваем таймаут: если opencode
+        // принял соединение, но завис, нельзя держать воркер Apache до
+        // OC_TIMEOUT (до 300 c) — иначе опрос статуса быстро выест весь пул.
+        $health_timeout = $short_timeout ? 5 : 10;
+        $health_result = $this->restRequest('GET', $health_path, null, $health_timeout);
         if ($health_result && $health_result['code'] === 200 && !empty($health_result['data']['version'])) {
             $this->noteRunningVersion($health_result['data']['version']);
         }
@@ -2085,17 +2093,31 @@ class opencode extends module {
      * чтобы убедиться, что он действительно рабочий.
      */
     function checkPythonPackage($package, $deep = false) {
+        // Спавн python3 не бесплатный (а на малолюдной машине ещё и давит на
+        // память). Опрос статуса дёргает проверку каждые 5 c, поэтому
+        // результат кэшируем; $deep = свежая проверка (после установки пакета).
+        $cache_key = 'OC_PY_' . strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', $package));
+        $ts_key = $cache_key . '_TS';
+        if (!$deep) {
+            $ts = isset($this->config[$ts_key]) ? (int)$this->config[$ts_key] : 0;
+            if ($ts > 0 && (time() - $ts) < 300 && isset($this->config[$cache_key])) {
+                return (int)$this->config[$cache_key] === 1;
+            }
+        }
         $check = $deep
             ? "import " . $package
             : 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("' . $package . '") else 1)';
         exec("cd /tmp && python3 -c '" . $check . "' 2>&1", $output, $return_var);
-        if ($return_var === 0) return true;
-        $venv_python = $this->findMcpVenvPython();
-        if ($venv_python) {
-            exec("cd /tmp && " . $venv_python . " -c '" . $check . "' 2>&1", $output, $return_var);
-            if ($return_var === 0) return true;
+        $ok = ($return_var === 0);
+        if (!$ok) {
+            $venv_python = $this->findMcpVenvPython();
+            if ($venv_python) {
+                exec("cd /tmp && " . $venv_python . " -c '" . $check . "' 2>&1", $output, $return_var);
+                $ok = ($return_var === 0);
+            }
         }
-        return false;
+        $this->updateConfig(array($cache_key => $ok ? 1 : 0, $ts_key => time()));
+        return $ok;
     }
 
     function installOpencodeBinary() {

@@ -60,12 +60,14 @@ if ($op == 'send_message') {
     echo json_encode(array('success' => true, 'models' => $models));
 } elseif ($op == 'check_status') {
     $health = null;
-    $deps = $m->checkDependencies($health);
+    // Опрос идёт каждые 5 c со страницы модуля: не держим воркер Apache на
+    // медленном opencode и не ходим в сеть за версиями (только кэш).
+    $deps = $m->checkDependencies($health, true);
     $model_name = $m->config['OC_PROVIDER_ENDPOINT'] ? ($m->config['OC_PROVIDER_MODEL'] ?: $m->config['OC_MODEL']) : ($m->config['OC_MODEL'] ?: 'opencode/big-pickle');
     $mcp_status = $m->getMcpStatuses();
     $cur_version = $m->getCurrentVersion();
-    $latest_version = $m->getLatestOpencodeVersion();
-    $latest_v2 = $m->getLatestOpencodeV2();
+    $latest_version = $m->getLatestOpencodeVersion(false);
+    $latest_v2 = $m->getLatestOpencodeV2(false);
     $is_v2 = $m->isV2Version($cur_version);
     $v2_available = ($latest_v2 !== '' && $cur_version !== '' && version_compare($latest_v2, $cur_version, '>'));
     echo json_encode(array(

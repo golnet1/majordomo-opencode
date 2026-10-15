@@ -523,6 +523,7 @@ function ocUpdateStatus() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', '/modules/opencode/opencode_ajax.php?op=check_status&_=' + Date.now(), true);
     xhr.onload = function() {
+        ocStatusBusy = false;
         if (xhr.status != 200) return;
         try {
             var r = JSON.parse(xhr.responseText);
@@ -629,7 +630,16 @@ function ocUpdateStatus() {
             }
         } catch(e) {}
     };
+    xhr.onerror = function() { ocStatusBusy = false; };
     xhr.send();
+}
+function ocStatusTick() {
+    // Не допускаем наложения запросов: если предыдущий опрос ещё не вернулся
+    // (opencode задумался), следующий пропускаем — иначе запросы копится и
+    // занимают все воркеры Apache prefork, а веб-интерфейс перестаёт отвечать.
+    if (ocStatusBusy) return;
+    ocStatusBusy = true;
+    ocUpdateStatus();
 }
 function ocInstallMcpPkg(btn) {
     btn.disabled = true;
@@ -682,10 +692,14 @@ function ocShowLog() {
     var el = document.getElementById('oc_journal_log');
     if (!box || !el) return;
     box.style.display = '';
+    var busy = false;
     function load() {
+        if (busy) return;
+        busy = true;
         var x = new XMLHttpRequest();
         x.open('GET', '/modules/opencode/opencode_ajax.php?op=get_log&_=' + Date.now(), true);
-        x.onload = function() { if (x.status == 200) { el.textContent = x.responseText || '—'; el.scrollTop = el.scrollHeight; } };
+        x.onload = function() { busy = false; if (x.status == 200) { el.textContent = x.responseText || '—'; el.scrollTop = el.scrollHeight; } };
+        x.onerror = function() { busy = false; };
         x.send();
     }
     load();
@@ -711,6 +725,7 @@ function ocCopyLog() {
         navigator.clipboard.writeText(text).then(function(){ done(true); }, fallback);
     } else fallback();
 }
-setInterval(ocUpdateStatus, 5000);
-ocUpdateStatus();
+var ocStatusBusy = false;
+setInterval(ocStatusTick, 5000);
+ocStatusTick();
 </script>
