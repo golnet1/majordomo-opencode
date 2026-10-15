@@ -46,6 +46,12 @@ class opencode extends module {
         return false;
     }
 
+    function isRecentlyInstalled($grace = 120) {
+        if (empty($this->config['OC_INSTALL_TS'])) return false;
+        if ((time() - (int)$this->config['OC_INSTALL_TS']) <= $grace) return true;
+        return false;
+    }
+
     function restRequest($method, $path, $body = null, $timeout = 0) {
         // OpenCode не установлен — не пытаемся подключиться к API вообще.
         if (!$this->isOpencodeInstalled()) {
@@ -90,7 +96,11 @@ class opencode extends module {
         $error = curl_error($ch);
         curl_close($ch);
         if ($error) {
-            DebMes("Opencode REST error: {$error}", 'opencode');
+            // Не логируем спам ошибок подключения в течение короткого окна после
+            // свежей установки: сервис может ещё не подняться.
+            if (!$this->isRecentlyInstalled(120)) {
+                DebMes("Opencode REST error: {$error}", 'opencode');
+            }
             $this->last_error = LANG_OPENCODE_CONNECT_ERROR . ': ' . $error;
             return null;
         }
@@ -130,8 +140,25 @@ class opencode extends module {
      */
     function binaryVersion($path) {
         if (!is_string($path) || $path === '' || !file_exists($path)) return '';
-        $raw = trim((string)shell_exec(escapeshellarg($path) . ' --version 2>/dev/null'));
-        return preg_match('/\d+\.\d+\.\d+/', $raw, $m) ? $m[0] : '';
+        // Сразу после установки/обновления бинарник может не успеть ответить.
+        // Делаем несколько попыток, иначе v2 ошибочно принимается за v1 и в
+        // systemd-юнит попадает команда 'web' вместо 'serve' (сервис падает).
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $raw = trim((string)shell_exec(escapeshellarg($path) . ' --version 2>/dev/null'));
+            if (preg_match('/\d+\.\d+\.\d+/', $raw, $m)) return $m[0];
+            if ($attempt < 2) usleep(300000);
+        }
+        return '';
+    }
+
+    /**
+     * Отдаёт ли бинарник подкоманду 'serve' (признак OpenCode v2). Используется,
+     * когда версию получить не удалось: подкоманда сервиса важнее номера версии.
+     */
+    function binarySupportsServe($path) {
+        if (!is_string($path) || $path === '' || !file_exists($path)) return false;
+        $raw = (string)shell_exec(escapeshellarg($path) . ' --help 2>&1');
+        return (bool)preg_match('/^\s*serve\b/m', $raw);
     }
 
     /**
@@ -142,6 +169,10 @@ class opencode extends module {
     function isOpencodeV2() {
         if ($this->is_v2_cache !== null) return $this->is_v2_cache;
         $version = $this->getOpencodeVersion();
+        if ($version === '' && file_exists($this->opencode_bin)) {
+            // Версию бинарник не отдал — определяем по наличию подкоманды serve.
+            $version = $this->binarySupportsServe($this->opencode_bin) ? '2.0.0' : '';
+        }
         if ($version === '') {
             $version = $this->getCurrentVersion();
         }
@@ -360,12 +391,24 @@ class opencode extends module {
     function getJournalLog($max_bytes = 65536) {
         $base = rtrim(defined('ROOT') ? ROOT : '/var/www/html', '/') . '/cms/debmes';
         if (!is_dir($base)) return '';
-        $files = glob($base . '/*/opencode.log');
-        if (!$files) {
-            $alt = $base . '/opencode.log';
-            $files = file_exists($alt) ? array($alt) : array();
+        $files = array();
+        $pattern1 = $base . '/*/opencode.log';
+        $found = glob($pattern1);
+        if ($found) $files = array_merge($files, $found);
+        $alt = $base . '/opencode.log';
+        if (file_exists($alt)) $files[] = $alt;
+        if (empty($files) && function_exists('shell_exec')) {
+            $cmd = "find " . escapeshellarg($base) . " -name 'opencode*.log' 2>/dev/null | head -50";
+            $out = trim(shell_exec($cmd));
+            if ($out) {
+                foreach (preg_split('/\r?\n/', $out) as $f) {
+                    $f = trim($f);
+                    if ($f && is_file($f)) $files[] = $f;
+                }
+            }
         }
-        if (!$files) return '';
+        $files = array_values(array_unique($files));
+        if (empty($files)) return '';
         $latest = '';
         $latest_mtime = -1;
         foreach ($files as $f) {
@@ -376,8 +419,52 @@ class opencode extends module {
         $size = @filesize($latest);
         if ($size === false) return '';
         $offset = ($size > $max_bytes) ? ($size - $max_bytes) : 0;
-        $text = @file_get_contents($latest, false, null, $offset);
-        return $text === false ? '' : $text;
+        $text = @file_get_contents($latest, false, null, $offset, $max_bytes);
+        if ($text === false) return '';
+        // Читаем с середины файла — первая строка обычно обрезана, убираем её.
+        if ($offset > 0) {
+            $nl = strpos($text, "\n");
+            if ($nl !== false) $text = substr($text, $nl + 1);
+        }
+        return $this->cleanJournalText($text);
+    }
+
+    /**
+     * Чистит журнал от управляющих последовательностей терминала, которые
+     * оставляет установщик opencode (спиннер прогресса, перерисовка строки).
+     * Без этого «Журнал» в браузере выглядит как мусор из "[999D[J".
+     */
+    function cleanJournalText($text) {
+        if ($text === '') return '';
+        // Журнал может содержать не-UTF-8 байты, поэтому /u не используем —
+        // иначе preg_replace вернёт null и журнал пропадёт целиком.
+        $replace = function ($pattern, $replacement, $subject) {
+            $res = @preg_replace($pattern, $replacement, $subject);
+            return $res === null ? $subject : $res;
+        };
+        // Возврат каретки и перерисовка кадра спиннера — это перевод строки.
+        $text = str_replace("\r\n", "\n", $text);
+        $text = str_replace("\r", "\n", $text);
+        $text = $replace('/(?:\x1b)?\[999D/', "\n", $text);
+        // ANSI/CSI-последовательности — со ESC и без него.
+        $text = $replace('/\x1b\][^\x07]*(?:\x07|\x1b\\\\)?/', '', $text);
+        $text = $replace('/\x1b\[[0-9;?]*[ -\/]*[@-~]/', '', $text);
+        $text = $replace('/\x1b[@-Z\\\\-_]/', '', $text);
+        $text = $replace('/\[[0-9;?]*[ABCDHJKMSTfhlmnsuG]/', '', $text);
+        // Символы-спиннеры прогресса: Braille (U+2800..U+28FF) и кружки
+        // (U+25D0..U+25D3) — задаём байтовыми последовательностями UTF-8.
+        $text = $replace('/\xE2[\xA0-\xA3][\x80-\xBF]|\xE2\x97[\x90-\x93]/', '', $text);
+        // Схлопываем подряд идущие одинаковые строки (кадры спиннера).
+        $lines = explode("\n", $text);
+        $out = array();
+        $prev = null;
+        foreach ($lines as $line) {
+            $line = rtrim($line);
+            if ($line !== '' && $line === $prev) continue;
+            $out[] = $line;
+            $prev = $line;
+        }
+        return trim(implode("\n", $out));
     }
 
     function noteMinVersion($min) {
@@ -1447,24 +1534,26 @@ class opencode extends module {
         $sudo = $this->isRoot() ? '' : 'sudo ';
 
         $service_file = '/etc/systemd/system/opencode-web.service';
-        if (!file_exists($service_file)) {
-            $unit = "[Unit]\n";
-            $unit .= "Description=Opencode AI Service\n";
-            $unit .= "After=network.target\n\n";
-            $unit .= "[Service]\n";
-            $unit .= "Type=simple\n";
-            $unit .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}\n";
-            $unit .= "Restart=always\n";
-            $unit .= "RestartSec=5\n\n";
-            $unit .= "[Install]\n";
-            $unit .= "WantedBy=multi-user.target\n";
-            $tmp = '/var/www/tmp/opencode-web.service';
-            file_put_contents($tmp, $unit);
-            exec("{$sudo}cp " . escapeshellarg($tmp) . " " . escapeshellarg($service_file) . " 2>&1", $out, $rc);
-            @unlink($tmp);
-            if ($rc !== 0) {
-                DebMes("Opencode: cp service file failed (rc={$rc}): " . implode(' ', $out), 'opencode');
-            }
+        // Пишем основной юнит каждый раз, а не только при создании: подкоманда
+        // сервиса меняется вместе с версией (v1 'web' -> v2 'serve'), и старый
+        // юнит с 'web' ломает запуск на v2. Drop-in перекрывает ExecStart, но
+        // базовый файл тоже должен быть актуальным.
+        $unit = "[Unit]\n";
+        $unit .= "Description=Opencode AI Service\n";
+        $unit .= "After=network.target\n\n";
+        $unit .= "[Service]\n";
+        $unit .= "Type=simple\n";
+        $unit .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}\n";
+        $unit .= "Restart=always\n";
+        $unit .= "RestartSec=5\n\n";
+        $unit .= "[Install]\n";
+        $unit .= "WantedBy=multi-user.target\n";
+        $tmp = '/var/www/tmp/opencode-web.service';
+        file_put_contents($tmp, $unit);
+        exec("{$sudo}cp " . escapeshellarg($tmp) . " " . escapeshellarg($service_file) . " 2>&1", $out, $rc);
+        @unlink($tmp);
+        if ($rc !== 0) {
+            DebMes("Opencode: cp service file failed (rc={$rc}): " . implode(' ', $out), 'opencode');
         }
 
         $content = "[Service]\n";
@@ -1787,7 +1876,7 @@ class opencode extends module {
             $this->is_v2_cache = null;
             DebMes("Opencode binary found at: " . $this->opencode_bin, 'opencode');
             exec("{$sudo}chmod 755 " . escapeshellarg($this->opencode_bin) . " 2>/dev/null");
-            $this->updateConfig(array('OC_INSTALL_ATTEMPT' => null));
+            $this->updateConfig(array('OC_INSTALL_ATTEMPT' => null, 'OC_INSTALL_TS' => time()));
         } else {
             DebMes("Opencode installation failed", 'opencode');
         }
