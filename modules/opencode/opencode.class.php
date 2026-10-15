@@ -1087,6 +1087,7 @@ class opencode extends module {
         $tab = gr('tab');
         if (!$tab) $tab = 'settings';
         $auth_enabled = !empty($this->config['OC_AUTH_ENABLED']);
+        $out['OC_AUTH_ENABLED'] = $auth_enabled ? '1' : '0';
         $out['TAB'] = $tab;
         $out['TAB_SETTINGS'] = ($tab == 'settings') ? '1' : '0';
         $out['TAB_SERVER'] = ($tab == 'server') ? '1' : '0';
