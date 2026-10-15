@@ -2090,16 +2090,18 @@ class opencode extends module {
         $log = $this->stripANSI(trim(implode("\n", $output)));
         DebMes("Opencode upgrade output: " . substr($log, -500), 'opencode');
 
-        // 'opencode upgrade' returns 0 even when the underlying npm install failed,
-        // so the output has to be inspected as well.
-        $markers = array('Upgrade failed', 'failed for', 'npm ERR!', 'ENOTEMPTY', 'EEXIST');
+        // 'opencode upgrade' возвращает 0 даже когда нижележащий npm install упал,
+        // поэтому вывод тоже проверяем. Но маркеры — лишь вспомогательный признак:
+        // решение принимаем по фактической версии (см. ниже), иначе предупреждения
+        // npm превращают удачное обновление в красную ошибку.
+        $markers = array(
+            'Upgrade failed', 'failed for', 'npm ERR!', 'ENOTEMPTY', 'EEXIST',
+            'could not install OpenCode', 'Could not check for OpenCode updates',
+            'Could not prepare the OpenCode upgrade', 'Could not download the OpenCode installer',
+        );
         $failed = ($return_var !== 0);
         foreach ($markers as $marker) {
             if (stripos($log, $marker) !== false) $failed = true;
-        }
-        if ($failed) {
-            $this->cleanNpmUpgradeLeftovers();
-            return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . $this->stripANSI(substr($log, -200)));
         }
 
         $this->opencode_bin = $this->findOpencodeBinary();
@@ -2108,9 +2110,17 @@ class opencode extends module {
         $this->is_v2_cache = null;
         $new_version = $this->getOpencodeVersion();
 
-        if ($old_version !== '' && $new_version === $old_version) {
-            return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . LANG_OPENCODE_UPGRADE_NO_CHANGE . ' ' . $old_version);
+        // Главный критерий успеха — фактически изменившаяся версия. Если бинарник
+        // обновился, обновление удалось, даже если в выводе были предупреждения.
+        $changed = ($old_version !== '' && $new_version !== '' && $new_version !== $old_version);
+
+        if (!$changed && $failed) {
+            $this->cleanNpmUpgradeLeftovers();
+            return array('ok' => false, 'message' => LANG_OPENCODE_UPGRADE_FAILED . ' ' . $this->stripANSI(substr($log, -200)));
         }
+
+        // Ошибок нет, но версия не изменилась: обновлять было нечего (уже стоит
+        // последняя версия). Это не ошибка — ниже отдаём успешный результат.
 
         // Сбрасываем кэш «последней версии», чтобы проверка сразу пересчиталась.
         @unlink(sys_get_temp_dir() . '/opencode-update.json');
@@ -2127,12 +2137,16 @@ class opencode extends module {
         // Перегенерируем конфиг вместе с юнитом: в v2 системный промпт живёт
         // в opencode.jsonc (agents.<agent>.system), поэтому после перехода на
         // v2 его обязательно нужно записать заново. writeOpencodeConfig() сам
-        // вызывает setupServiceDropin() и syncServiceRestart().
-        $this->writeOpencodeConfig();
+        // вызывает setupServiceDropin() и syncServiceRestart(). Если версия не
+        // менялась (обновлять было нечего), сервис зря не перезапускаем.
+        if ($changed) {
+            $this->writeOpencodeConfig();
+        }
 
         $min = $this->getMinVersion();
         $still_old = ($min !== '' && $new_version !== '' && version_compare($new_version, $min) < 0);
-        $msg = LANG_OPENCODE_UPGRADE_DONE . ' ' . ($new_version !== '' ? $new_version : '?');
+        $ver_show = ($new_version !== '' ? $new_version : ($old_version !== '' ? $old_version : '?'));
+        $msg = ($changed ? LANG_OPENCODE_UPGRADE_DONE : LANG_OPENCODE_UPGRADE_LATEST) . ' ' . $ver_show;
         if ($still_old) $msg .= '. ' . LANG_OPENCODE_UPGRADE_REQUIRED . ' ' . $min;
         return array('ok' => !$still_old, 'message' => $msg);
     }

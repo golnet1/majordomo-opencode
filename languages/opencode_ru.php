@@ -126,6 +126,7 @@ $dictionary = array(
     'OPENCODE_UPGRADE_FAILED' => 'Не удалось обновить OpenCode:',
     'OPENCODE_UPGRADE_NO_BINARY' => 'бинарник не найден',
     'OPENCODE_UPGRADE_NO_CHANGE' => 'версия не изменилась',
+    'OPENCODE_UPGRADE_LATEST' => 'OpenCode уже последней версии:',
     'OPENCODE_UPGRADE_REQUIRED' => 'Требуется обновление OpenCode до версии',
     'OPENCODE_VERSION_AVAILABLE' => 'доступна',
     'OPENCODE_INSTALL_LOG' => 'Журнал',
