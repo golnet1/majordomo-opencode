@@ -99,8 +99,15 @@ class opencode extends module {
     }
 
     function getOpencodeVersion() {
-        if (!file_exists($this->opencode_bin)) return '';
-        $raw = trim((string)shell_exec(escapeshellarg($this->opencode_bin) . ' --version 2>/dev/null'));
+        return $this->binaryVersion($this->opencode_bin);
+    }
+
+    /**
+     * Версия конкретного бинарника opencode ('' если неизвестна/недоступна).
+     */
+    function binaryVersion($path) {
+        if (!is_string($path) || $path === '' || !file_exists($path)) return '';
+        $raw = trim((string)shell_exec(escapeshellarg($path) . ' --version 2>/dev/null'));
         return preg_match('/\d+\.\d+\.\d+/', $raw, $m) ? $m[0] : '';
     }
 
@@ -236,9 +243,10 @@ class opencode extends module {
     }
 
     /**
-     * Последняя версия OpenCode 2. Ветка 2.x не публикуется в npm-пакете
-     * (там только 1.x), поэтому её номер берём из git-тегов основного
-     * репозитория на GitHub (v2.*). Ответ кэшируется так же, как для 1.x.
+     * Последняя версия OpenCode 2. В npm-пакете opencode-ai публикуется только
+     * 1.x (ветка 2.x идёт отдельным пакетом @opencode/cli), поэтому номер
+     * версии 2.x берём из git-тегов основного репозитория на GitHub (v2.*).
+     * Ответ кэшируется так же, как для 1.x.
      */
     function getLatestOpencodeV2() {
         $file = sys_get_temp_dir() . '/opencode-update-v2.json';
@@ -1003,8 +1011,7 @@ class opencode extends module {
             } else {
                 $this->updateConfig(array('OC_REMOVED' => null));
                 $this->installOpencodeBinary();
-                $this->setupServiceDropin();
-                $this->syncServiceRestart();
+                $this->writeOpencodeConfig();
             }
             echo '<html><head><meta http-equiv="refresh" content="0;url=/admin.php"></head><body></body></html>';
             exit;
@@ -1465,16 +1472,38 @@ class opencode extends module {
     }
 
     function getBinaryCandidates() {
-        return array('/usr/local/bin/opencode', '/usr/bin/opencode');
+        $candidates = array('/usr/local/bin/opencode', '/usr/bin/opencode');
+        // Установщик opencode кладёт бинарник в $HOME/.opencode/bin — модуль
+        // (www-data, HOME=/var/www) должен его тоже видеть, иначе после
+        // перехода на v2 он не найдёт новый бинарник.
+        $home = getenv('HOME');
+        if ($home) $candidates[] = rtrim($home, '/') . '/.opencode/bin/opencode';
+        $candidates[] = '/var/www/.opencode/bin/opencode';
+        return array_values(array_unique($candidates));
     }
 
     function findOpencodeBinary() {
+        $candidates = array();
         $bin = trim(exec('command -v opencode 2>/dev/null'));
-        if ($bin && file_exists($bin)) return $bin;
+        if ($bin && file_exists($bin)) $candidates[] = $bin;
         foreach ($this->getBinaryCandidates() as $p) {
-            if (file_exists($p)) return $p;
+            if (file_exists($p) && !in_array($p, $candidates)) $candidates[] = $p;
         }
-        return '/usr/local/bin/opencode';
+        if (empty($candidates)) return '/usr/local/bin/opencode';
+        if (count($candidates) === 1) return $candidates[0];
+        // Несколько бинарей (например, оставшийся v1 и только что
+        // установленный v2): берём самый свежий, чтобы модуль не цеплялся
+        // за старый бинарник после обновления.
+        $best = $candidates[0];
+        $best_ver = $this->binaryVersion($best);
+        for ($i = 1; $i < count($candidates); $i++) {
+            $v = $this->binaryVersion($candidates[$i]);
+            if ($v !== '' && ($best_ver === '' || version_compare($v, $best_ver, '>'))) {
+                $best = $candidates[$i];
+                $best_ver = $v;
+            }
+        }
+        return $best;
     }
 
     function executeMajordomoCommand($command) {
@@ -1732,7 +1761,7 @@ class opencode extends module {
         if ($target !== '') $cmd .= ' ' . escapeshellarg($target);
         if ($major) {
             // Переход на OpenCode 2 (удаляет OpenCode 1). Метод установки
-            // выбирает сам CLI — ветки 2.x в npm-пакете нет.
+            // выбирает сам CLI (2.x публикуется отдельным пакетом @opencode/cli).
             $cmd .= ' --major';
         } else {
             $cmd .= ' --method npm';
@@ -1780,8 +1809,11 @@ class opencode extends module {
             'OC_INSTALL_ATTEMPT' => null
         ));
 
-        $this->setupServiceDropin();
-        $this->syncServiceRestart();
+        // Перегенерируем конфиг вместе с юнитом: в v2 системный промпт живёт
+        // в opencode.jsonc (agents.<agent>.system), поэтому после перехода на
+        // v2 его обязательно нужно записать заново. writeOpencodeConfig() сам
+        // вызывает setupServiceDropin() и syncServiceRestart().
+        $this->writeOpencodeConfig();
 
         $min = $this->getMinVersion();
         $still_old = ($min !== '' && $new_version !== '' && version_compare($new_version, $min) < 0);
