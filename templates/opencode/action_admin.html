@@ -547,16 +547,22 @@ function ocUpdateStatus() {
                     el.style.display = 'none';
                 }
             }
+            var isV2 = r.is_v2 === true;
             var needMinor = r.outdated || r.update_available;
-            var offerMajor = r.binary_ok && !needMinor && r.v2_available;
+            var offerMajor = r.binary_ok && !needMinor && !isV2 && r.v2_available;
             el = document.getElementById('oc_version_available');
             if (el) {
                 if (offerMajor && r.version_v2) {
                     el.style.display = '';
                     el.textContent = '<#LANG_OPENCODE_V2_AVAILABLE#> ' + r.version_v2;
-                } else if (r.update_available && r.version_latest) {
-                    el.style.display = '';
-                    el.textContent = '<#LANG_OPENCODE_VERSION_AVAILABLE#> ' + r.version_latest;
+                } else if (r.update_available) {
+                    var tgt = isV2 ? r.version_v2 : r.version_latest;
+                    if (tgt) {
+                        el.style.display = '';
+                        el.textContent = '<#LANG_OPENCODE_VERSION_AVAILABLE#> ' + tgt;
+                    } else {
+                        el.style.display = 'none';
+                    }
                 } else {
                     el.style.display = 'none';
                 }

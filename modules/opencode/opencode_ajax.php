@@ -66,6 +66,8 @@ if ($op == 'send_message') {
     $cur_version = $m->getCurrentVersion();
     $latest_version = $m->getLatestOpencodeVersion();
     $latest_v2 = $m->getLatestOpencodeV2();
+    $is_v2 = $m->isV2Version($cur_version);
+    $v2_available = ($latest_v2 !== '' && $cur_version !== '' && version_compare($latest_v2, $cur_version, '>'));
     echo json_encode(array(
         'success' => true,
         'api_ok' => ($deps['api'] === 'ok'),
@@ -77,10 +79,12 @@ if ($op == 'send_message') {
         'version' => $cur_version,
         'min_version' => $m->getMinVersion(),
         'outdated' => $m->isVersionOutdated(),
+        'is_v2' => $is_v2,
         'version_latest' => $latest_version,
-        'update_available' => $m->isUpdateAvailable($cur_version, $latest_version),
+        // Обычное обновление: новая 1.x либо новая 2.x при уже установленной 2.x.
+        'update_available' => ($m->isUpdateAvailable($cur_version, $latest_version) || ($is_v2 && $v2_available)),
         'version_v2' => $latest_v2,
-        'v2_available' => ($latest_v2 !== '' && $cur_version !== '' && version_compare($latest_v2, $cur_version, '>'))
+        'v2_available' => $v2_available
     ));
 } elseif ($op == 'get_log') {
     while (ob_get_level()) ob_end_clean();

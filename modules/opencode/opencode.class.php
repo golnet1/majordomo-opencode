@@ -243,6 +243,14 @@ class opencode extends module {
         return $this->is_v2_cache;
     }
 
+    /**
+     * Относится ли указанная версия к ветке OpenCode 2 (>= 2.0.0).
+     */
+    function isV2Version($version) {
+        $version = trim((string)$version);
+        return ($version !== '' && version_compare($version, '2.0.0', '>='));
+    }
+
     function serviceSubcommand() {
         return $this->isOpencodeV2() ? 'serve' : 'web';
     }
@@ -444,8 +452,11 @@ class opencode extends module {
 
     /**
      * Собирает в $out всю информацию о версиях и о том, что показывает кнопка
-     * обновления: пока есть более новая 1.x — это обычное обновление; когда
-     * 1.x уже максимальная, та же кнопка предлагает переход на OpenCode 2.
+     * обновления. Логика:
+     *  - пока есть более новая 1.x — обычное обновление («Обновить OpenCode»);
+     *  - 1.x уже максимальная — та же кнопка предлагает переход на OpenCode 2;
+     *  - если же уже установлена 2.x, то новая 2.x — это снова обычное обновление
+     *    («Обновить OpenCode»), а не переход на OpenCode 2.
      */
     function applyOpencodeVersionInfo(&$out, $binary_ok) {
         $cur = $this->getCurrentVersion();
@@ -454,8 +465,16 @@ class opencode extends module {
         $latest_v2 = $this->getLatestOpencodeV2();
         $outdated = $this->isVersionOutdated();
         $update_available = $this->isUpdateAvailable($cur, $latest);
+        // Установлена ли уже ветка OpenCode 2.
+        $is_v2 = $this->isV2Version($cur);
+        // Есть ли более новая 2.x (важно как для перехода с 1.x, так и для обновления 2.x).
         $v2_available = ($latest_v2 !== '' && $cur !== '' && version_compare($latest_v2, $cur, '>'));
-        $offer_major = (!$outdated && !$update_available && $v2_available);
+        // Новая 2.x при уже установленной 2.x — это обычное обновление.
+        $update_v2 = ($is_v2 && $v2_available);
+        // Переход 1.x -> 2.x предлагаем только тогда, когда стоит ещё 1.x.
+        $offer_major = (!$is_v2 && !$outdated && !$update_available && $v2_available);
+        // Обычное обновление (новая 1.x либо новая 2.x при установленной 2.x).
+        $need_update = ($update_available || $update_v2);
 
         $out['OC_VERSION_CURRENT'] = $cur !== '' ? $cur : '?';
         $out['OC_VERSION_MIN'] = $min !== '' ? $min : '?';
@@ -463,21 +482,21 @@ class opencode extends module {
         $out['OC_VERSION_V2'] = $latest_v2;
         $out['OC_V2_AVAILABLE'] = $v2_available ? '1' : '0';
         $out['OC_VERSION_OUTDATED'] = $outdated ? '1' : '0';
-        $out['OC_UPDATE_AVAILABLE'] = $update_available ? '1' : '0';
+        $out['OC_UPDATE_AVAILABLE'] = $need_update ? '1' : '0';
         $out['OC_VERSION_BADGE_COLOR'] = $outdated ? '#d9534f' : '#5cb85c';
         $out['OC_VERSION_BADGE_VISIBLE'] = $outdated ? '' : 'style="display:none"';
         $out['OC_VERSION_ROW_VISIBLE'] = $cur !== '' ? '' : 'style="display:none"';
 
-        $hint_visible = ($update_available || $offer_major);
+        $hint_visible = ($need_update || $offer_major);
         $out['OC_UPDATE_HINT_VISIBLE'] = $hint_visible ? '' : 'style="display:none"';
         $out['OC_UPDATE_HINT_TEXT'] = $offer_major
             ? LANG_OPENCODE_V2_AVAILABLE . ' ' . $latest_v2
-            : (LANG_OPENCODE_VERSION_AVAILABLE . ' ' . $latest);
+            : (LANG_OPENCODE_VERSION_AVAILABLE . ' ' . ($is_v2 ? $latest_v2 : $latest));
 
         $out['OC_UPGRADE_BTN_LABEL'] = $offer_major ? LANG_OPENCODE_UPGRADE_V2 : LANG_OPENCODE_UPGRADE;
         $out['OC_UPGRADE_VIEW_MODE'] = $offer_major ? 'upgrade_opencode_major' : 'upgrade_opencode';
         $out['OC_UPGRADE_BTN_TITLE'] = $offer_major ? LANG_OPENCODE_UPGRADE_V2_HELP : LANG_OPENCODE_UPGRADE_BTN_HELP;
-        $out['OC_UPGRADE_BTN_VISIBLE'] = ($binary_ok && ($outdated || $update_available || $offer_major)) ? '' : 'style="display:none"';
+        $out['OC_UPGRADE_BTN_VISIBLE'] = ($binary_ok && ($outdated || $need_update || $offer_major)) ? '' : 'style="display:none"';
     }
 
     /**
