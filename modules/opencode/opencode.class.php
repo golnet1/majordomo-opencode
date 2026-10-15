@@ -1133,7 +1133,15 @@ class opencode extends module {
                 $this->installOpencodeBinary();
                 $this->writeOpencodeConfig();
             }
-            echo '<html><head><meta http-equiv="refresh" content="0;url=/admin.php"></head><body></body></html>';
+            // Возвращаемся на страницу модуля с той же вкладкой, а не на
+            // главную страницу админки: установка/удаление — это действие
+            // внутри модуля, и контекст терять не нужно.
+            $back_tab = gr('tab');
+            if (!in_array($back_tab, array('settings', 'server', 'chat', 'web', 'help'), true)) {
+                $back_tab = 'server';
+            }
+            $back_url = '?action=opencode&md=opencode&tab=' . urlencode($back_tab);
+            echo '<html><head><meta http-equiv="refresh" content="0;url=' . $back_url . '"></head><body></body></html>';
             exit;
         }
 
