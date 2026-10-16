@@ -1317,19 +1317,22 @@ class opencode extends module {
      * Общий разбор ответа v2: токены, ошибка, текст. Если агент ждёт ответа на
      * вопрос — вопрос добавляется к ответу, чтобы его было видно в чате.
      */
-    function buildV2Response($session_id, $assistant, $pending_form) {
+    function buildV2Response($session_id, $assistant, $pending_form, $fallback_assistant = null) {
         $text = '';
         if ($assistant) {
             $this->saveTokensFromResponse(array('data' => $assistant));
             if ($this->extractApiError(array('data' => $assistant)) !== '') return '';
             $text = $this->parseAssistantMessageV2($assistant);
         }
+        if ($text === '' && $fallback_assistant && $fallback_assistant !== $assistant) {
+            $text = $this->parseAssistantMessageV2($fallback_assistant);
+        }
         if ($pending_form) {
             $question = $this->formatPendingForm($pending_form);
             if ($question !== '') $text = trim($text . "\n\n" . $question);
             return $text;
         }
-        if (!$assistant) {
+        if (!$assistant && !$fallback_assistant) {
             $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (no response)';
             DebMes("Opencode v2: no assistant response for session={$session_id}", 'opencode');
             return '';
@@ -1353,7 +1356,19 @@ class opencode extends module {
             DebMes("Opencode v2: answering form {$form['id']} with " . json_encode($answer, JSON_UNESCAPED_UNICODE), 'opencode');
             if ($this->replyToForm($session_id, $form['id'], $answer)) {
                 $turn = $this->waitForIdleOrFormV2($session_id, $state, $timeout);
-                return $this->buildV2Response($session_id, $turn['assistant'], $turn['form']);
+                $fallback = null;
+                if (($turn['assistant'] === null || $this->parseAssistantMessageV2($turn['assistant']) === '') && $turn['form'] === null) {
+                    $msgs = $this->getSessionMessagesV2($session_id, 10);
+                    if (is_array($msgs)) {
+                        foreach ($msgs as $m) {
+                            if (is_array($m) && isset($m['type']) && $m['type'] === 'assistant') {
+                                $t = $this->parseAssistantMessageV2($m);
+                                if ($t !== '') { $fallback = $m; break; }
+                            }
+                        }
+                    }
+                }
+                return $this->buildV2Response($session_id, $turn['assistant'], $turn['form'], $fallback);
             }
             DebMes("Opencode v2: cannot answer form, sending message as a normal prompt", 'opencode');
         }
@@ -1367,7 +1382,19 @@ class opencode extends module {
         // v2 обрабатывает prompt асинхронно — ждём завершения хода или вопроса
         // от агента: вопрос показываем в чате, при этом чат не висит.
         $turn = $this->waitForIdleOrFormV2($session_id, $state, $timeout);
-        return $this->buildV2Response($session_id, $turn['assistant'], $turn['form']);
+        $fallback = null;
+        if (($turn['assistant'] === null || $this->parseAssistantMessageV2($turn['assistant']) === '') && $turn['form'] === null) {
+            $msgs = $this->getSessionMessagesV2($session_id, 10);
+            if (is_array($msgs)) {
+                foreach ($msgs as $m) {
+                    if (is_array($m) && isset($m['type']) && $m['type'] === 'assistant') {
+                        $t = $this->parseAssistantMessageV2($m);
+                        if ($t !== '') { $fallback = $m; break; }
+                    }
+                }
+            }
+        }
+        return $this->buildV2Response($session_id, $turn['assistant'], $turn['form'], $fallback);
     }
 
     function processWithOpencodeV2($message, $timeout = 0, $session_id = '') {
