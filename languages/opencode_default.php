@@ -164,6 +164,8 @@ Do not include your reasoning or service tags (like thinking/response) in the re
     'OPENCODE_RESTRICTION_CONFIG' => '- Do NOT modify system configuration files (/etc/, /var/www/html/config.php, etc.)',
     'OPENCODE_RESTRICTION_PACKAGES' => '- Do NOT install or remove packages (apt, dpkg, pip, npm, gem, cpan)',
     'OPENCODE_RESTRICTION_CORE' => '- It is forbidden to modify, delete or overwrite Majordomo core files and its modules',
+    'OPENCODE_QUESTION_TITLE' => 'Clarifying question:',
+    'OPENCODE_QUESTION_HINT' => 'reply to it with your next message.',
 );
 
 foreach ($dictionary as $k=>$v)

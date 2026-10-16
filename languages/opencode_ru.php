@@ -164,6 +164,8 @@ $dictionary = array(
     'OPENCODE_RESTRICTION_CONFIG' => '- НЕ изменяй конфигурационные файлы системы (/etc/, /var/www/html/config.php и т.д.)',
     'OPENCODE_RESTRICTION_PACKAGES' => '- НЕ устанавливай и не удаляй пакеты (apt, dpkg, pip, npm, gem, cpan)',
     'OPENCODE_RESTRICTION_CORE' => '- Запрещено изменять, удалять или перезаписывать файлы ядра Majordomo и его модули',
+    'OPENCODE_QUESTION_TITLE' => 'Уточняющий вопрос:',
+    'OPENCODE_QUESTION_HINT' => 'ответьте на него следующим сообщением.',
 );
 
 foreach ($dictionary as $k=>$v)

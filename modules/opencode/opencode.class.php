@@ -1024,28 +1024,273 @@ class opencode extends module {
     }
 
     /**
+     * Нижний регистр строки. mbstring на сервере может быть не установлен,
+     * поэтому используем безопасный откат на strtolower.
+     */
+    function strLowerUtf8($s) {
+        $s = (string)$s;
+        return function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+    }
+
+    /**
+     * Агент может задать уточняющий вопрос встроенным инструментом question.
+     * В OpenCode такой вопрос оформляется как «форма» (Form) и блокирует ход
+     * генерации, пока на него не ответят. Возвращает первую ожидающую форму
+     * сессии или null.
+     */
+    function getPendingForm($session_id, $timeout = 5) {
+        if (!$session_id) return null;
+        $result = $this->restRequest('GET', "/session/{$session_id}/form", null, $timeout);
+        if (!$result || (int)$result['code'] !== 200) return null;
+        $forms = $this->apiData($result);
+        if (!is_array($forms)) return null;
+        foreach ($forms as $form) {
+            if (is_array($form) && !empty($form['id']) && !empty($form['fields'])) return $form;
+        }
+        return null;
+    }
+
+    /**
+     * Подбирает вариант формы, соответствующий ответу пользователя: по номеру,
+     * точному или частичному совпадению value/label.
+     */
+    function matchFormOption($options, $value) {
+        if (!is_array($options) || !count($options)) return null;
+        $needle = $this->strLowerUtf8(trim(is_string($value) ? $value : ''));
+        if ($needle === '') return null;
+        if (preg_match('/^\d+$/', $needle)) {
+            $idx = (int)$needle - 1;
+            if (isset($options[$idx]['value'])) return $options[$idx]['value'];
+        }
+        foreach ($options as $option) {
+            foreach (array('label', 'value') as $k) {
+                $cand = $this->strLowerUtf8(trim(isset($option[$k]) ? $option[$k] : ''));
+                if ($cand !== '' && $cand === $needle) return $option['value'];
+            }
+        }
+        foreach ($options as $option) {
+            foreach (array('label', 'value') as $k) {
+                $cand = $this->strLowerUtf8(trim(isset($option[$k]) ? $option[$k] : ''));
+                if ($cand !== '' && (strpos($cand, $needle) !== false || strpos($needle, $cand) !== false)) {
+                    return $option['value'];
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Значение ответа для одного поля формы: подбираем вариант по ответу
+     * пользователя, иначе (если поле допускает произвольный ввод) отправляем
+     * ответ как есть. Крайний случай — последний вариант из списка.
+     */
+    function mapFormValue($field, $value) {
+        $type = isset($field['type']) ? $field['type'] : 'string';
+        $value = is_string($value) ? trim($value) : $value;
+        $options = (isset($field['options']) && is_array($field['options'])) ? $field['options'] : array();
+
+        if ($type === 'boolean') {
+            $v = $this->strLowerUtf8(is_string($value) ? $value : (string)$value);
+            return in_array($v, array('1', 'true', 'yes', 'y', 'on', '+', 'да'), true);
+        }
+
+        if ($type === 'multiselect') {
+            $chosen = array();
+            foreach (preg_split('/[,;]+/', is_string($value) ? $value : '') as $part) {
+                $matched = $this->matchFormOption($options, $part);
+                if ($matched !== null) $chosen[] = $matched;
+            }
+            if (!count($chosen) && is_string($value) && trim($value) !== '') $chosen[] = trim($value);
+            return $chosen;
+        }
+
+        if (count($options)) {
+            $matched = $this->matchFormOption($options, is_string($value) ? $value : '');
+            if ($matched !== null) return $matched;
+            if (!empty($field['custom'])) return is_string($value) ? $value : '';
+            $last = $options[count($options) - 1];
+            return isset($last['value']) ? $last['value'] : '';
+        }
+
+        return is_string($value) ? $value : '';
+    }
+
+    /**
+     * Готовит тело ответа на форму. Если вопросов несколько, ответ пользователя
+     * можно разбить по строкам (по одному ответу на строку).
+     */
+    function buildFormAnswer($form, $message) {
+        $fields = (isset($form['fields']) && is_array($form['fields'])) ? $form['fields'] : array();
+        $text = trim($message);
+        $lines = preg_split('/\r?\n/', $text);
+        $per_line = (count($fields) > 1 && count($lines) === count($fields));
+        $answer = array();
+        $i = 0;
+        foreach ($fields as $field) {
+            $key = isset($field['key']) ? $field['key'] : ('q' . $i);
+            $answer[$key] = $this->mapFormValue($field, $per_line ? $lines[$i] : $text);
+            $i++;
+        }
+        return $answer;
+    }
+
+    function replyToForm($session_id, $form_id, $answer) {
+        $result = $this->restRequest('POST', "/session/{$session_id}/form/{$form_id}/reply", array('answer' => $answer), 15);
+        $ok = $result && in_array((int)$result['code'], array(200, 201, 202, 204), true);
+        if (!$ok) {
+            DebMes("Opencode v2: form reply failed (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
+        }
+        return $ok;
+    }
+
+    /**
+     * Текст вопроса для чата: сам вопрос и варианты ответа.
+     */
+    function formatPendingForm($form) {
+        $title = isset($form['title']) ? trim($form['title']) : '';
+        // У форм инструмента question заголовок всегда технический ("Questions").
+        if ($title === '' || $this->strLowerUtf8($title) === 'questions') {
+            $title = LANG_OPENCODE_QUESTION_TITLE;
+        }
+        $out = array($title . ' ' . LANG_OPENCODE_QUESTION_HINT);
+        $fields = (isset($form['fields']) && is_array($form['fields'])) ? $form['fields'] : array();
+        foreach ($fields as $field) {
+            $q = isset($field['title']) ? trim($field['title']) : '';
+            $desc = isset($field['description']) ? trim($field['description']) : '';
+            if ($desc !== '' && $desc !== $q) {
+                $q = ($q !== '') ? ($q . ': ' . $desc) : $desc;
+            }
+            if ($q !== '') $out[] = $q;
+            $options = (isset($field['options']) && is_array($field['options'])) ? $field['options'] : array();
+            $n = 1;
+            foreach ($options as $option) {
+                $label = isset($option['label']) ? $option['label'] : (isset($option['value']) ? $option['value'] : '');
+                $descr = isset($option['description']) ? trim($option['description']) : '';
+                $line = $n . '. ' . $label;
+                if ($descr !== '') $line .= ' — ' . $descr;
+                $out[] = $line;
+                $n++;
+            }
+        }
+        return implode("\n", $out);
+    }
+
+    /**
+     * Последние сообщения сессии (сначала самые свежие). В v2 приходят все типы
+     * сообщений: user, assistant и служебное сообщение простоя (type=idle).
+     */
+    function getSessionMessagesV2($session_id, $limit = 6, $timeout = 15) {
+        $result = $this->restRequest('GET', "/session/{$session_id}/message?order=desc&limit={$limit}", null, $timeout);
+        if (!$result || (int)$result['code'] !== 200) return null;
+        $messages = $this->apiData($result);
+        return is_array($messages) ? $messages : null;
+    }
+
+    /**
+     * Новое ли это сообщение ассистента относительно снимка состояния сессии.
+     */
+    function isNewAssistantMessageV2($message, $state) {
+        if (!is_array($message) || !isset($message['type']) || $message['type'] !== 'assistant') return false;
+        if (!empty($state['has_ids'])) {
+            $id = isset($message['id']) ? $message['id'] : '';
+            return ($id !== '' && !isset($state['ids'][$id]));
+        }
+        $text = $this->assistantTextV2($message);
+        return ($text !== '' && $text !== $state['newest_text']);
+    }
+
+    /**
+     * Ждёт окончания хода генерации, но прекращает ожидание, если агент задал
+     * вопрос (форма). Длинный wait на стороне opencode приостанавливается вместе
+     * с ходом и не даёт заметить вопрос, поэтому ориентируемся на служебное
+     * сообщение о простое сессии (type=idle), которое появляется в конце хода.
+     * Возвращает array('assistant' => сообщение|null, 'form' => форма|null).
+     */
+    function waitForIdleOrFormV2($session_id, $state, $timeout = 0) {
+        if ($timeout <= 0) $timeout = $this->config['OC_TIMEOUT'] ? $this->config['OC_TIMEOUT'] : 120;
+        $start = time();
+        $assistant = null;
+        do {
+            $form = $this->getPendingForm($session_id);
+            if ($form) return array('assistant' => $assistant, 'form' => $form);
+
+            $messages = $this->getSessionMessagesV2($session_id);
+            $idle = false;
+            if (is_array($messages) && count($messages)) {
+                $newest = $messages[0];
+                // Служебное сообщение (не user/assistant) = ход завершён.
+                $idle = !empty($newest['type']) && $newest['type'] !== 'assistant' && $newest['type'] !== 'user';
+                foreach ($messages as $m) {
+                    if ($this->isNewAssistantMessageV2($m, $state)) { $assistant = $m; break; }
+                }
+            }
+            // Ответ ассистента обязателен: короткая пауза защищает от гонки,
+            // когда сразу после отправки промпта в списке ещё старое сообщение.
+            if ($idle && ($assistant !== null || time() - $start >= 3)) {
+                return array('assistant' => $assistant, 'form' => null);
+            }
+            if (time() - $start >= $timeout) {
+                return array('assistant' => $assistant, 'form' => null);
+            }
+            sleep(1);
+        } while (true);
+    }
+
+    /**
+     * Общий разбор ответа v2: токены, ошибка, текст. Если агент ждёт ответа на
+     * вопрос — вопрос добавляется к ответу, чтобы его было видно в чате.
+     */
+    function buildV2Response($session_id, $assistant, $pending_form) {
+        $text = '';
+        if ($assistant) {
+            $this->saveTokensFromResponse(array('data' => $assistant));
+            if ($this->extractApiError(array('data' => $assistant)) !== '') return '';
+            $text = $this->parseAssistantMessageV2($assistant);
+        }
+        if ($pending_form) {
+            $question = $this->formatPendingForm($pending_form);
+            if ($question !== '') $text = trim($text . "\n\n" . $question);
+            return $text;
+        }
+        if (!$assistant) {
+            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (no response)';
+            DebMes("Opencode v2: no assistant response for session={$session_id}", 'opencode');
+            return '';
+        }
+        return $text;
+    }
+
+    /**
      * Отправляет сообщение в сессию v2 и возвращает текст ответа.
      * null — сессию нужно пересоздать; '' — ошибка (текст в last_error).
      */
     function sendPromptV2($session_id, $message, $timeout = 0) {
+        // Агент задал уточняющий вопрос и ждёт ответа: следующее сообщение
+        // пользователя отправляем как произвольный ответ на форму.
+        $form = $this->getPendingForm($session_id);
+        if ($form) {
+            // Снимок берём уже вместе с вопросом, чтобы ответом считалось только
+            // следующее за вопросом сообщение ассистента.
+            $state = $this->getSessionStateV2($session_id);
+            $answer = $this->buildFormAnswer($form, $message);
+            DebMes("Opencode v2: answering form {$form['id']} with " . json_encode($answer, JSON_UNESCAPED_UNICODE), 'opencode');
+            if ($this->replyToForm($session_id, $form['id'], $answer)) {
+                $turn = $this->waitForIdleOrFormV2($session_id, $state, $timeout);
+                return $this->buildV2Response($session_id, $turn['assistant'], $turn['form']);
+            }
+            DebMes("Opencode v2: cannot answer form, sending message as a normal prompt", 'opencode');
+        }
+
         $state = $this->getSessionStateV2($session_id);
         $result = $this->restRequest('POST', "/session/{$session_id}/prompt", array('text' => $message), min($timeout, 60));
         if (!$result || !in_array((int)$result['code'], array(200, 201, 202, 204), true)) {
             DebMes("Opencode v2: prompt failed (code=" . ($result ? $result['code'] : 'null') . ")", 'opencode');
             return null;
         }
-        // v2 обрабатывает prompt асинхронно — ждём завершения генерации.
-        $this->restRequest('POST', "/experimental/session/{$session_id}/wait", new stdClass(), $timeout);
-
-        $assistant = $this->getAssistantResponseV2($session_id, $state, $timeout);
-        if (!$assistant) {
-            $this->last_error = LANG_OPENCODE_SERVER_ERROR . ' (no response)';
-            DebMes("Opencode v2: no assistant response for session={$session_id}", 'opencode');
-            return '';
-        }
-        $this->saveTokensFromResponse(array('data' => $assistant));
-        if ($this->extractApiError(array('data' => $assistant)) !== '') return '';
-        return $this->parseAssistantMessageV2($assistant);
+        // v2 обрабатывает prompt асинхронно — ждём завершения хода или вопроса
+        // от агента: вопрос показываем в чате, при этом чат не висит.
+        $turn = $this->waitForIdleOrFormV2($session_id, $state, $timeout);
+        return $this->buildV2Response($session_id, $turn['assistant'], $turn['form']);
     }
 
     function processWithOpencodeV2($message, $timeout = 0, $session_id = '') {
