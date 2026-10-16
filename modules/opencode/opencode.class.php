@@ -1060,7 +1060,54 @@ class opencode extends module {
         if ($needle === '') return null;
         if (preg_match('/^\d+$/', $needle)) {
             $idx = (int)$needle - 1;
-            if (isset($options[$idx]['value'])) return $options[$idx]['value'];
+            if ($idx >= 0 && $idx < count($options) && isset($options[$idx]['value'])) return $options[$idx]['value'];
+        }
+        // Try numbers possibly with suffixes like "1-й", "2й", "1st", "2nd"
+        if (preg_match('/(\d+)\b/', $needle, $m)) {
+            $idx = (int)$m[1] - 1;
+            if ($idx >= 0 && $idx < count($options) && isset($options[$idx]['value'])) return $options[$idx]['value'];
+        }
+        // Russian ordinal words
+        $ord_ru = array(
+            'первый' => 1, 'первая' => 1, 'первое' => 1,
+            'второй' => 2, 'вторая' => 2, 'второе' => 2,
+            'третий' => 3, 'третья' => 3, 'третье' => 3,
+            'четвертый' => 4, 'четвертая' => 4, 'четвертое' => 4,
+            'пятый' => 5, 'пятая' => 5, 'пятое' => 5,
+            'шестой' => 6, 'шестая' => 6, 'шестое' => 6,
+            'седьмой' => 7, 'седьмая' => 7, 'седьмое' => 7,
+            'восьмой' => 8, 'восьмая' => 8, 'восьмое' => 8,
+            'девятый' => 9, 'девятая' => 9, 'девятое' => 9,
+            'десятый' => 10, 'десятая' => 10, 'десятое' => 10,
+            'последний' => count($options),
+            'последняя' => count($options),
+            'последнее' => count($options),
+        );
+        foreach ($ord_ru as $w => $num) {
+            if (strpos($needle, $w) !== false) {
+                $idx = (int)$num - 1;
+                if ($idx >= 0 && $idx < count($options) && isset($options[$idx]['value'])) return $options[$idx]['value'];
+            }
+        }
+        // English ordinal words
+        $ord_en = array(
+            'first' => 1, '1st' => 1,
+            'second' => 2, '2nd' => 2,
+            'third' => 3, '3rd' => 3,
+            'fourth' => 4, 'fourth' => 4,
+            'fifth' => 5, 'fifth' => 5,
+            'sixth' => 6,
+            'seventh' => 7,
+            'eighth' => 8,
+            'ninth' => 9,
+            'tenth' => 10,
+            'last' => count($options),
+        );
+        foreach ($ord_en as $w => $num) {
+            if (strpos($needle, $w) !== false) {
+                $idx = (int)$num - 1;
+                if ($idx >= 0 && $idx < count($options) && isset($options[$idx]['value'])) return $options[$idx]['value'];
+            }
         }
         foreach ($options as $option) {
             foreach (array('label', 'value') as $k) {
@@ -1108,8 +1155,38 @@ class opencode extends module {
             $matched = $this->matchFormOption($options, is_string($value) ? $value : '');
             if ($matched !== null) return $matched;
             if (!empty($field['custom'])) return is_string($value) ? $value : '';
-            $last = $options[count($options) - 1];
-            return isset($last['value']) ? $last['value'] : '';
+            $txt = $this->strLowerUtf8(is_string($value) ? $value : '');
+            $affirm = array('да', 'yes', 'y', 'ok', 'okay', 'ага', 'угу', 'конечно', 'разреш', 'можно', 'включ', 'enable', 'allow', 'permit', 'любой', 'любая', 'любое', 'все', 'всё', 'продолж', 'дальше', 'go', 'sure', 'хорошо', 'пожалуй', 'один', '1');
+            $neg = array('нет', 'no', 'n', 'не', 'нельзя', 'запрещ', 'disable', 'deny', 'отказ', 'отмен', 'выключ', 'off', 'stop', 'three', 'три', '3'); // 'three' accidental? no
+            // refine neg
+            $neg = array('нет', 'no', 'n', 'не', 'нельзя', 'запрет', 'запрещ', 'disable', 'deny', 'denied', 'отказ', 'отклон', 'отмена', 'отменить', 'выключ', 'выключить', 'off', 'stop', 'стоп');
+            $is_aff = false; $is_neg = false;
+            foreach ($affirm as $w) if ($w !== '' && strpos($txt, $w) !== false) { $is_aff = true; break; }
+            foreach ($neg as $w) if ($w !== '' && strpos($txt, $w) !== false) { $is_neg = true; break; }
+            if ($is_neg && !$is_aff) {
+                // try to find deny-ish option
+                foreach ($options as $option) {
+                    foreach (array('label', 'value') as $k) {
+                        $cand = $this->strLowerUtf8(trim(isset($option[$k]) ? $option[$k] : ''));
+                        if ($cand !== '' && (strpos($cand, 'disable') !== false || strpos($cand, 'deny') !== false || strpos($cand, 'запрет') !== false || strpos($cand, 'запрещ') !== false || strpos($cand, 'выключ') !== false || strpos($cand, 'откл') !== false || strpos($cand, 'нет') !== false || strpos($cand, 'off') !== false)) {
+                            return $option['value'];
+                        }
+                    }
+                }
+                $last = $options[count($options) - 1];
+                return isset($last['value']) ? $last['value'] : '';
+            }
+            // affirmative or unknown → prefer allow-ish or first
+            foreach ($options as $option) {
+                foreach (array('label', 'value') as $k) {
+                    $cand = $this->strLowerUtf8(trim(isset($option[$k]) ? $option[$k] : ''));
+                    if ($cand !== '' && (strpos($cand, 'allow') !== false || strpos($cand, 'разреш') !== false || strpos($cand, 'enable') !== false || strpos($cand, 'включ') !== false || strpos($cand, 'approve') !== false || strpos($cand, 'да') !== false || strpos($cand, 'yes') !== false || strpos($cand, 'on') !== false)) {
+                        return $option['value'];
+                    }
+                }
+            }
+            $first = $options[0];
+            return isset($first['value']) ? $first['value'] : '';
         }
 
         return is_string($value) ? $value : '';
