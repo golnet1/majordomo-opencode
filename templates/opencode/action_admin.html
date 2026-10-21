@@ -11,6 +11,8 @@
             <span id="oc_deps_sudo_label" style="vertical-align:middle;">Sudo ([#DEPS_SUDO_LABEL#])</span>
             <span id="oc_deps_model" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:[#DEPS_MODEL_COLOR#];margin-right:3px;margin-left:8px;vertical-align:middle;"></span>
             <span id="oc_deps_model_label" style="vertical-align:middle;">[#DEPS_MODEL_LABEL#]</span>
+            <span id="oc_active_dot" [#OC_ACTIVE_VISIBLE#] style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#28a745;margin-right:3px;margin-left:8px;vertical-align:middle;" title="<#LANG_OPENCODE_ACTIVE_CHAT#>"></span>
+            <span id="oc_active_label" [#OC_ACTIVE_VISIBLE#] style="vertical-align:middle;" title="<#LANG_OPENCODE_ACTIVE_CHAT#>"><#LANG_OPENCODE_ACTIVE#></span>
             <span id="oc_version_badge" [#OC_VERSION_ROW_VISIBLE#] style="margin-left:10px;padding:1px 8px;border-radius:10px;background:[#OC_VERSION_BADGE_COLOR#];color:#fff;font-size:12px;vertical-align:middle;">v[#OC_VERSION_CURRENT#]</span>
             <span id="oc_version_available" [#OC_UPDATE_HINT_VISIBLE#] style="margin-left:6px;font-size:12px;color:#3c763d;vertical-align:middle;">[#OC_UPDATE_HINT_TEXT#]</span>
         </span>
@@ -407,6 +409,7 @@
     [#if TAB_CHAT="1"#]
 
     <div class="opencode-container">
+        <div class="oc-active-hint" [#OC_ACTIVE_CHAT_VISIBLE#]><i class="glyphicon glyphicon-info-sign"></i> <#LANG_OPENCODE_ACTIVE_CHAT#></div>
         <div class="opencode-input">
             <form onsubmit="return ocSendMessage()" class="oc-input-form">
                 <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_MESSAGE_PLACEHOLDER#>">
@@ -417,7 +420,7 @@
         <div class="opencode-messages" id="ocMessages"></div>
     </div>
 
-    <link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=5">
+    <link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=6">
     <script>
 var ocLang = {
     send: '<#OC_LANG_SEND#>',
@@ -431,7 +434,7 @@ var ocLang = {
     errorPrefix: '<#OC_LANG_ERROR_PREFIX#>'
 };
 </script>
-    <script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=4"></script>
+    <script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=5"></script>
 
     [#endif#]
 

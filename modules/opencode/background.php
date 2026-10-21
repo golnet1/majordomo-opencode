@@ -23,4 +23,8 @@ if ($response) {
     $rec['MESSAGE'] = $m->getLastError() ?: LANG_OPENCODE_NO_RESPONSE;
 }
 $rec['ROLE'] = 'assistant';
+// Запись создавалась как плейсхолдер '…' в момент вопроса, поэтому время
+// обновляем на момент готовности ответа — иначе у пары «вопрос → ответ»
+// в истории стоял бы час вопроса.
+$rec['ADDED'] = date('Y-m-d H:i:s');
 SQLUpdate('opencode_messages', $rec);

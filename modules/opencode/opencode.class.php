@@ -771,6 +771,20 @@ class opencode extends module {
         $this->result = $p->result;
     }
 
+    /**
+     * Подписан ли модуль на событие COMMAND (обработка команд в системном чате).
+     * Подписка хранится в settings['HOOK_EVENT_COMMAND'] как JSON: имя модуля =>
+     * параметры подписки. Если пользователь отписал модуль в админке ядра,
+     * запись удаляется — модуль это уважает и подписывается заново только
+     * при повторной установке.
+     */
+    function isCommandSubscribed() {
+        $rec = SQLSelectOne("SELECT VALUE FROM settings WHERE NAME='HOOK_EVENT_COMMAND'");
+        if (empty($rec['VALUE'])) return false;
+        $data = json_decode($rec['VALUE'], true);
+        return (is_array($data) && isset($data[$this->name]));
+    }
+
     function processSubscription($event, &$details) {
         if ($event != 'COMMAND') return;
 
@@ -1397,6 +1411,9 @@ class opencode extends module {
         $out['OC_LANG_SERVER_ERROR'] = LANG_OPENCODE_SERVER_ERROR;
         $out['OC_LANG_UNKNOWN_ERROR'] = LANG_OPENCODE_UNKNOWN_ERROR;
         $out['OC_LANG_ERROR_PREFIX'] = LANG_OPENCODE_ERROR_PREFIX;
+        // Подсказка «ассистент запущен через системный чат» показывается,
+        // только пока модуль подписан на событие COMMAND.
+        $out['OC_ACTIVE_CHAT_VISIBLE'] = $this->isCommandSubscribed() ? '' : 'style="display:none"';
     }
 
     function checkDependencies(&$health_result = null, $short_timeout = false) {
@@ -1444,6 +1461,12 @@ class opencode extends module {
         $arch_ok = $arch_info['is_64bit'];
         $out['OC_ARCH_ERROR_VISIBLE'] = $arch_ok ? 'style="display:none"' : '';
         $out['OC_DOWNLOAD_BTN_VISIBLE'] = $arch_ok ? '' : 'style="display:none"';
+
+        // Подписка на COMMAND: индикатор показываем только когда она реально
+        // активна — пользователь может отписать модуль в админке ядра.
+        $cmd_subscribed = $this->isCommandSubscribed();
+        $out['OC_ACTIVE_VISIBLE'] = $cmd_subscribed ? '' : 'style="display:none"';
+        $out['OC_ACTIVE_CHAT_VISIBLE'] = $cmd_subscribed ? '' : 'style="display:none"';
 
         if ($deps['opencode_binary'] !== 'ok' && empty($this->config['OC_REMOVED']) && $arch_ok) {
             $last_attempt = (int)(isset($this->config['OC_INSTALL_ATTEMPT']) ? $this->config['OC_INSTALL_ATTEMPT'] : 0);

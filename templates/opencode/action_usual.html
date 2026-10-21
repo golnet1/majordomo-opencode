@@ -1,4 +1,5 @@
 <div class="opencode-container">
+    <div class="oc-active-hint" [#OC_ACTIVE_CHAT_VISIBLE#]><i class="glyphicon glyphicon-info-sign"></i> <#LANG_OPENCODE_ACTIVE_CHAT#></div>
     <div class="opencode-input">
         <form onsubmit="return ocSendMessage()" class="oc-input-form">
             <input type="text" id="ocInput" class="form-control" placeholder="<#LANG_OPENCODE_MESSAGE_PLACEHOLDER#>">
@@ -9,7 +10,7 @@
     <div class="opencode-messages" id="ocMessages"></div>
 </div>
 
-<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=5">
+<link rel="stylesheet" href="<#ROOTHTML#>templates/opencode/css/opencode.css?v=6">
 <script>
 var ocLang = {
     send: '<#LANG_OPENCODE_SEND#>',
@@ -23,4 +24,4 @@ var ocLang = {
     errorPrefix: '<#LANG_OPENCODE_ERROR_PREFIX#>'
 };
 </script>
-<script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=4"></script>
+<script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=5"></script>

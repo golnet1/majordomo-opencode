@@ -12,7 +12,7 @@ function ocPollMessage(msgId) {
                 var res = JSON.parse(xhr.responseText);
                 if (res.success && !res.processing) {
                     ocHideTyping();
-                    ocAddMessage('assistant', res.response);
+                    ocAddMessage('assistant', res.response, res.added);
                 } else if (res.success && res.processing) {
                     setTimeout(function() { ocPollMessage(msgId); }, 2000);
                 } else {
@@ -64,7 +64,7 @@ function ocSendMessage() {
                     ocPollMessage(res.message_id);
                 } else if (res.success && res.response) {
                     ocHideTyping();
-                    ocAddMessage('assistant', res.response);
+                    ocAddMessage('assistant', res.response, res.added);
                 } else {
                     ocHideTyping();
                     var errPrefix = res.error ? (ocLang && ocLang.errorPrefix || 'Error: ') : '';
@@ -106,7 +106,30 @@ function ocFormatMessage(text) {
     return s;
 }
 
-function ocAddMessage(role, text) {
+function ocFormatTime(t) {
+    if (!t) return '';
+    var d = null;
+    if (typeof t === 'string') {
+        // 'Y-m-d H:i:s' из БД разбираем вручную: new Date('2026-10-21 14:32:07')
+        // разные браузеры трактуют по-разному (часть — как UTC).
+        var m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (!m) return '';
+        d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0);
+    } else {
+        d = t;
+    }
+    if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var now = new Date();
+    var sameDay = (d.getFullYear() === now.getFullYear() &&
+                   d.getMonth() === now.getMonth() &&
+                   d.getDate() === now.getDate());
+    if (sameDay) return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() +
+           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function ocAddMessage(role, text, time) {
     var container = document.getElementById('ocMessages');
     var div = document.createElement('div');
     div.className = 'oc-message oc-message-' + role;
@@ -125,6 +148,17 @@ function ocAddMessage(role, text) {
     textDiv.innerHTML = ocFormatMessage(text);
 
     content.appendChild(textDiv);
+
+    // Время сообщения: серверное для истории и для готового ответа,
+    // текущее — для сообщений, только что отправленных из панели.
+    var timeStr = ocFormatTime(time || new Date());
+    if (timeStr) {
+        var timeDiv = document.createElement('div');
+        timeDiv.className = 'oc-message-time';
+        timeDiv.textContent = timeStr;
+        content.appendChild(timeDiv);
+    }
+
     div.appendChild(avatar);
     div.appendChild(content);
     container.insertBefore(div, container.firstChild);
@@ -194,7 +228,7 @@ function ocLoadHistory() {
                     // so walk backwards to keep newest at the top.
                     for (var i = res.messages.length - 1; i >= 0; i--) {
                         var m = res.messages[i];
-                        ocAddMessage(m.ROLE, m.MESSAGE);
+                        ocAddMessage(m.ROLE, m.MESSAGE, m.ADDED);
                     }
                     if (res.messages.length === 0) {
                         var msg = ocLang && ocLang.howCanIHelp || 'How can I help you?';

@@ -85,6 +85,27 @@
     color: white;
 }
 
+/* Время сообщения — мелкой строкой под текстом, внутри «пузыря». */
+.oc-message-time {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
+
+.oc-message-user .oc-message-time {
+    color: rgba(255,255,255,0.7);
+}
+
+/* Подсказка «ассистент запущен через системный чат» — баннер над полем ввода. */
+.oc-active-hint {
+    order: -2;
+    padding: 6px 15px;
+    background: #eef6fd;
+    border-bottom: 1px solid #d6e9f8;
+    color: #31708f;
+    font-size: 12px;
+}
+
 .opencode-input {
     padding: 12px 15px;
     background: #f5f5f5;

@@ -39,7 +39,7 @@ if ($op == 'send_message') {
             if ($rec['MESSAGE'] === '…') {
                 echo json_encode(array('success' => true, 'processing' => true));
             } else {
-                echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE']));
+                echo json_encode(array('success' => true, 'processing' => false, 'response' => $rec['MESSAGE'], 'added' => $rec['ADDED']));
             }
         } else {
             echo json_encode(array('success' => false, 'error' => LANG_OPENCODE_MESSAGE_NOT_FOUND));
