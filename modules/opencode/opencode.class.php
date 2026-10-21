@@ -26,6 +26,16 @@ class opencode extends module {
     }
 
     /**
+     * Показывать ли время под сообщениями в чате. По умолчанию — показывать:
+     * ключ появляется в конфиге только после первого сохранения настроек,
+     * поэтому у уже установленных модулей время не исчезнет само.
+     */
+    function showTime() {
+        if (!isset($this->config['OC_SHOW_TIME'])) return true;
+        return (bool)$this->config['OC_SHOW_TIME'];
+    }
+
+    /**
      * Установлен ли opencode локально (либо настроен удалённый сервер). Пока
      * бинарника нет, модуль не должен никуда подключаться: иначе в лог каждые
      * несколько секунд сыпется "Failed to connect to 127.0.0.1 port 4096".
@@ -1414,6 +1424,8 @@ class opencode extends module {
         // Подсказка «ассистент запущен через системный чат» показывается,
         // только пока модуль подписан на событие COMMAND.
         $out['OC_ACTIVE_CHAT_VISIBLE'] = $this->isCommandSubscribed() ? '' : 'style="display:none"';
+        // Показ времени под сообщениями: переключается в настройках модуля.
+        $out['OC_SHOW_TIME'] = $this->showTime() ? 'true' : 'false';
     }
 
     function checkDependencies(&$health_result = null, $short_timeout = false) {
@@ -1546,6 +1558,7 @@ class opencode extends module {
                 }
                 DebMes("Opencode: MCP checkbox raw='{$oc_majordomo_mcp_val}' mcp_installed=" . ($mcp_installed ? '1' : '0') . " saved=" . ($this->config['OC_MAJORDOMO_MCP'] ?? 'NULL'), 'opencode');
                 $this->config['OC_SESSION_REUSE'] = gr('oc_session_reuse') ? 1 : 0;
+                $this->config['OC_SHOW_TIME'] = gr('oc_show_time') ? 1 : 0;
                 DebMes("Opencode: saveConfig pre-call MAX_HISTORY=" . ($this->config['OC_MAX_HISTORY'] ?? 'NULL') . " TIMEOUT=" . ($this->config['OC_TIMEOUT'] ?? 'NULL') . " BG_TO=" . ($this->config['OC_BG_TIMEOUT'] ?? 'NULL'), 'opencode');
 
                 $prompt = trim($this->config['OC_SYSTEM_PROMPT']);
@@ -1669,6 +1682,9 @@ class opencode extends module {
         $out['OC_MAJORDOMO_MCP_CHECKED'] = $this->config['OC_MAJORDOMO_MCP'] ? 'checked' : '';
         $out['OC_MAJORDOMO_MCP_VISIBLE'] = $mcp_installed ? '' : 'style="display:none"';
         $out['OC_SESSION_REUSE_CHECKED'] = $this->config['OC_SESSION_REUSE'] ? 'checked' : '';
+        $out['OC_SHOW_TIME_CHECKED'] = $this->showTime() ? 'checked' : '';
+        // Показ времени под сообщениями в чате (в т.ч. на вкладке «Чат»).
+        $out['OC_SHOW_TIME'] = $this->showTime() ? 'true' : 'false';
         $out['OC_FULL_ACCESS_CHECKED'] = isset($this->config['OC_FULL_ACCESS']) ? ($this->config['OC_FULL_ACCESS'] ? 'checked' : '') : 'checked';
         $out['OC_SESSION_ID'] = $this->config['OC_SESSION_ID'] ?: '—';
         if (!empty($this->config['OC_SESSION_TOKENS'])) {

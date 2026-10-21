@@ -254,6 +254,25 @@
                 </div>
             </div>
 
+            <div class="panel panel-default">
+                <div class="panel-heading" style="cursor:pointer;" data-toggle="collapse" data-parent="#oc_settings_accordion" data-target="#oc_settings_ui">
+                    <span class="glyphicon glyphicon-time" style="margin-right:8px;"></span>
+                    <#LANG_OPENCODE_CHAT_UI#>
+                    <span class="caret" style="float:right;margin-top:8px;"></span>
+                </div>
+                <div id="oc_settings_ui" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label class="control-label col-md-3"><#LANG_OPENCODE_SHOW_TIME#></label>
+                            <div class="col-md-6">
+                                <input type="checkbox" name="oc_show_time" value="1" [#OC_SHOW_TIME_CHECKED#]>
+                                <span class="help-block"><#LANG_OPENCODE_SHOW_TIME_HELP#></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
     [#endif#]
@@ -433,8 +452,10 @@ var ocLang = {
     unknownError: '<#OC_LANG_UNKNOWN_ERROR#>',
     errorPrefix: '<#OC_LANG_ERROR_PREFIX#>'
 };
+// Показывать ли время под сообщениями (настройка модуля).
+var ocShowTime = <#OC_SHOW_TIME#>;
 </script>
-    <script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=5"></script>
+    <script src="<#ROOTHTML#>templates/opencode/js/opencode.js?v=6"></script>
 
     [#endif#]
 

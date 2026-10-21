@@ -2,6 +2,15 @@ function ocGetBaseUrl() {
     return '/modules/opencode/opencode_ajax.php';
 }
 
+// Показывать ли время под сообщением. Значение приходит из настроек модуля
+// (переменная ocShowTime в шаблоне). Если её нет — считаем, что время
+// показывать нужно: так ведёт себя и предыдущая версия модуля.
+function ocTimeEnabled() {
+    if (typeof ocShowTime === 'undefined' || ocShowTime === null || ocShowTime === '') return true;
+    if (ocShowTime === false || ocShowTime === 0 || ocShowTime === '0') return false;
+    return true;
+}
+
 function ocPollMessage(msgId) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', ocGetBaseUrl() + '?op=check_message', true);
@@ -124,9 +133,9 @@ function ocFormatTime(t) {
     var sameDay = (d.getFullYear() === now.getFullYear() &&
                    d.getMonth() === now.getMonth() &&
                    d.getDate() === now.getDate());
-    if (sameDay) return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (sameDay) return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
     return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() +
-           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 
 function ocAddMessage(role, text, time) {
@@ -151,7 +160,8 @@ function ocAddMessage(role, text, time) {
 
     // Время сообщения: серверное для истории и для готового ответа,
     // текущее — для сообщений, только что отправленных из панели.
-    var timeStr = ocFormatTime(time || new Date());
+    // Если в настройках выключено показ времени — не добавляем его вовсе.
+    var timeStr = ocTimeEnabled() ? ocFormatTime(time || new Date()) : '';
     if (timeStr) {
         var timeDiv = document.createElement('div');
         timeDiv.className = 'oc-message-time';
