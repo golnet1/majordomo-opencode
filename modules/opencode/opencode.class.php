@@ -7,6 +7,7 @@ class opencode extends module {
     var $last_error = '';
     var $is_v2_cache = null;
     var $mcp_python_cache = null;
+    var $arch_cache = null;
 
     function __construct() {
         $this->name = 'opencode';
@@ -1436,7 +1437,15 @@ class opencode extends module {
             $deps = $this->checkDependencies($health);
         }
 
-        if ($deps['opencode_binary'] !== 'ok' && empty($this->config['OC_REMOVED'])) {
+        // 32-разрядная ОС: opencode не ставится, модуль работает в ограниченном
+        // режиме. Показываем причину и не запускаем бессмысленные попытки
+        // установки бинарника раз в час.
+        $arch_info = $this->detectArch();
+        $arch_ok = $arch_info['is_64bit'];
+        $out['OC_ARCH_ERROR_VISIBLE'] = $arch_ok ? 'style="display:none"' : '';
+        $out['OC_DOWNLOAD_BTN_VISIBLE'] = $arch_ok ? '' : 'style="display:none"';
+
+        if ($deps['opencode_binary'] !== 'ok' && empty($this->config['OC_REMOVED']) && $arch_ok) {
             $last_attempt = (int)(isset($this->config['OC_INSTALL_ATTEMPT']) ? $this->config['OC_INSTALL_ATTEMPT'] : 0);
             if ((time() - $last_attempt) >= 3600) {
                 $this->updateConfig(array('OC_INSTALL_ATTEMPT' => time()));
@@ -2112,6 +2121,30 @@ class opencode extends module {
         }
     }
 
+    /**
+     * Архитектура ОС и признак 64-разрядности.
+     * Результат кэшируется: uname -m в пределах работы модуля не меняется.
+     * Если команда недоступна, считаем систему 64-разрядной — иначе блокируем
+     * установку на заведомо рабочей системе.
+     */
+    function detectArch() {
+        if ($this->arch_cache === null) {
+            $arch = trim((string)shell_exec('uname -m'));
+            // Текст ошибки берём из языкового файла, но с запасным вариантом:
+            // языковой файл на сервере может быть старее модуля.
+            $message = defined('LANG_OPENCODE_INSTALL_ARCH_ERROR')
+                ? LANG_OPENCODE_INSTALL_ARCH_ERROR
+                : 'OpenCode AI requires a 64-bit operating system.';
+            $this->arch_cache = array(
+                'arch' => $arch,
+                // armv8l — 32-битный ARMv8 (AArch32), не 64-битный.
+                'is_64bit' => !preg_match('/^(i[3456]86|armv[5678]l)$/', $arch),
+                'message' => $message,
+            );
+        }
+        return $this->arch_cache;
+    }
+
     function getBinaryCandidates() {
         $candidates = array('/usr/local/bin/opencode', '/usr/bin/opencode');
         // Установщик opencode кладёт бинарник в $HOME/.opencode/bin — модуль
@@ -2219,12 +2252,13 @@ class opencode extends module {
     }
 
     function install($parent_name = '') {
-        $arch = trim(shell_exec('uname -m'));
-        $is_64bit = !preg_match('/^(i[3456]86|armv[567]l)$/', $arch);
+        $arch_info = $this->detectArch();
+        $arch = $arch_info['arch'];
+        $is_64bit = $arch_info['is_64bit'];
         $install_web = $is_64bit;
 
         if (!$is_64bit) {
-            DebMes("Opencode install: 32-bit arch ({$arch}), skipping opencode web", 'opencode');
+            DebMes("Opencode install: 32-bit arch ({$arch}), skipping opencode web. " . $arch_info['message'], 'opencode');
         }
 
         parent::install($parent_name);
@@ -2380,6 +2414,13 @@ class opencode extends module {
     }
 
     function installOpencodeBinary() {
+        $arch_info = $this->detectArch();
+        if (!$arch_info['is_64bit']) {
+            // На 32-разрядной ОС opencode не собирается: не мутимся и не
+            // повторяем попытки установки раз в час из admin().
+            DebMes("Opencode install skipped: 32-bit arch ({$arch_info['arch']}). " . $arch_info['message'], 'opencode');
+            return;
+        }
         DebMes("Opencode binary not found, attempting to install...", 'opencode');
         $sudo = $this->isRoot() ? '' : 'sudo ';
         $install_output = array();

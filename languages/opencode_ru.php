@@ -33,6 +33,7 @@ $dictionary = array(
     'OPENCODE_BG_TIMEOUT' => 'Таймаут ошибки соединения (сек)',
     'OPENCODE_SAVE' => 'Сохранить',
     'OPENCODE_DIAGNOSTICS' => 'Диагностика системы',
+    'OPENCODE_INSTALL_ARCH_ERROR' => 'Обнаружена 32-разрядная система. OpenCode AI требует 64-разрядную ОС: бинарник и веб-интерфейс не устанавливаются, модуль работает в ограниченном режиме.',
     'OPENCODE_BINARY_PATH' => 'Путь бинарника',
     'OPENCODE_CONFIG_PATH' => 'Путь конфига',
     'OPENCODE_MESSAGE_PLACEHOLDER' => 'Спросите что-нибудь...',

@@ -26,7 +26,7 @@
            onclick="return confirm('<#LANG_OPENCODE_ARE_YOU_SURE#>')">
            <span class="glyphicon glyphicon-trash"></span> <#LANG_OPENCODE_REMOVE_OPENCODE#></a>
         [#else#]
-        <a href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=toggle_opencode" class="btn btn-success btn-sm">
+        <a id="oc_download_btn" [#OC_DOWNLOAD_BTN_VISIBLE#] href="?action=opencode&md=opencode&tab=[#TAB#]&view_mode=toggle_opencode" class="btn btn-success btn-sm">
            <span class="glyphicon glyphicon-download-alt"></span> <#LANG_OPENCODE_DOWNLOAD_OPENCODE#></a>
         [#endif#]
         [#if TAB_HELP!="1"#]
@@ -53,6 +53,7 @@
     <br>
 
     <div [#OK_VISIBLE#] class="alert alert-success"><#LANG_OPENCODE_SAVED#></div>
+    <div [#OC_ARCH_ERROR_VISIBLE#] class="alert alert-danger"><#LANG_OPENCODE_INSTALL_ARCH_ERROR#></div>
     <div [#if MCP_JSON_ERROR="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-danger"><#LANG_OPENCODE_MCP_JSON_ERROR#></div>
     <div id="oc_mcp_pkg_warning" [#if OC_MCP_PYTHON_OK!="1"#]style="display:block;"[#else#]style="display:none;"[#endif#] class="alert alert-warning">
         <#LANG_OPENCODE_MCP_PKG_WARNING#>

@@ -33,6 +33,7 @@ $dictionary = array(
     'OPENCODE_BG_TIMEOUT' => 'Connection Error Timeout (seconds)',
     'OPENCODE_SAVE' => 'Save',
     'OPENCODE_DIAGNOSTICS' => 'System Diagnostics',
+    'OPENCODE_INSTALL_ARCH_ERROR' => '32-bit system detected. OpenCode AI requires a 64-bit operating system: the binary and the web interface cannot be installed, the module works in limited mode.',
     'OPENCODE_BINARY_PATH' => 'Binary',
     'OPENCODE_CONFIG_PATH' => 'Config',
     'OPENCODE_MESSAGE_PLACEHOLDER' => 'Ask anything...',
