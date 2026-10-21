@@ -53,8 +53,6 @@ if ($op == 'send_message') {
 } elseif ($op == 'load_history') {
     $messages = SQLSelect("SELECT * FROM opencode_messages WHERE USER_ID='" . $user_id . "' ORDER BY ID DESC");
     echo json_encode(array('success' => true, 'messages' => $messages));
-} elseif ($op == 'load_devices') {
-    echo json_encode(array('success' => true, 'devices' => array()));
 } elseif ($op == 'refresh_models') {
     $models = $m->getAvailableModels(true);
     echo json_encode(array('success' => true, 'models' => $models));

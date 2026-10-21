@@ -3,11 +3,7 @@
 class opencode extends module {
 
     var $opencode_bin;
-    var $opencode_db;
     var $opencode_config_dir;
-    var $api_base = 'http://127.0.0.1:4096';
-    var $api_user = 'opencode';
-    var $api_pass = 'opencode';
     var $last_error = '';
     var $is_v2_cache = null;
     var $mcp_python_cache = null;
@@ -21,7 +17,6 @@ class opencode extends module {
         $this->getConfig();
 
         $this->opencode_bin = $this->findOpencodeBinary();
-        $this->opencode_db = '/var/www/.local/share/opencode/opencode.db';
         $this->opencode_config_dir = '/var/www/.config/opencode';
     }
 
@@ -726,6 +721,12 @@ class opencode extends module {
         return $msg;
     }
 
+    /**
+     * Сохраняет в query-строку только состояние модуля (id/mode/tab).
+     * Параметр $data не используется, но обязан присутствовать из-за сигнатуры
+     * родителя module::saveParams($data = 1): ядро вызывает saveParams() без
+     * аргументов, а набор параметров модуль формирует сам.
+     */
     function saveParams($data = 1) {
         $p = array();
         if (isset($this->id) && $this->id) { $p['id'] = $this->id; }
@@ -735,7 +736,7 @@ class opencode extends module {
         return parent::saveParams($p);
     }
 
-    function getParams($data = 1) {
+    function getParams() {
         $this->id = gr('id');
         $this->mode = gr('mode');
         $this->view_mode = gr('view_mode');
@@ -990,35 +991,6 @@ class opencode extends module {
             }
         }
         return $state;
-    }
-
-    /**
-     * Ждёт появления нового ответа ассистента. Сообщения приходят от новых к
-     * старым, поэтому проверяем первый (самый свежий) ответ ассистента.
-     */
-    function getAssistantResponseV2($session_id, $state, $timeout = 0) {
-        $timeout = $timeout > 0 ? $timeout : 120;
-        $start = time();
-        do {
-            $result = $this->restRequest('GET', $this->assistantMessagesPathV2($session_id), null, 30);
-            $messages = ($result && (int)$result['code'] === 200) ? $this->apiData($result) : null;
-            if (is_array($messages)) {
-                foreach ($messages as $m) {
-                    if (!is_array($m) || (isset($m['type']) ? $m['type'] : '') !== 'assistant') continue;
-                    if ($state['has_ids']) {
-                        $id = isset($m['id']) ? $m['id'] : '';
-                        if ($id !== '' && !isset($state['ids'][$id])) return $m;
-                    } else {
-                        $text = $this->assistantTextV2($m);
-                        if ($text !== '' && $text !== $state['newest_text']) return $m;
-                    }
-                    break;
-                }
-            }
-            if (time() - $start >= $timeout) break;
-            sleep(1);
-        } while (true);
-        return null;
     }
 
     /**
@@ -1755,7 +1727,6 @@ class opencode extends module {
 
     function getAvailableModels($force = false) {
         $cache_file = $this->getModelsCacheFile();
-        $use_cache = false;
 
         if (!$force && file_exists($cache_file)) {
             $cache_time = filemtime($cache_file);

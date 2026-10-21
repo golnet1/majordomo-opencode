@@ -1,4 +1,4 @@
-import sys, os, json, hashlib, urllib.request, urllib.parse, urllib.error
+import os, json, hashlib, urllib.request, urllib.parse, urllib.error
 
 from mcp.server.fastmcp import FastMCP
 
@@ -17,15 +17,10 @@ def fetch_json(url, timeout=15):
 def fetch_json_safe(url, timeout=15):
     try:
         return fetch_json(url, timeout)
-    except urllib.error.HTTPError as e:
+    except urllib.error.HTTPError:
         return None
-    except Exception as e:
+    except Exception:
         return None
-
-def fetch_text(url, timeout=15):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode(errors="replace")
 
 def zaycev_auth():
     global ZAYCEV_ACCESS_TOKEN

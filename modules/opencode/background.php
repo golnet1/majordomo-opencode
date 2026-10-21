@@ -6,7 +6,7 @@ require_once "./config.php";
 require_once "./lib/loader.php";
 require_once "./load_settings.php";
 $placeholder_id = (int)$argv[1];
-$user_id = (int)$argv[2];
+// $argv[2] — id пользователя: не нужен, USER_ID уже записан в саму запись сообщения
 $message = $argv[3];
 require_once "./modules/opencode/opencode.class.php";
 $m = new opencode();
