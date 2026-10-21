@@ -848,8 +848,22 @@ class opencode extends module {
         return $body;
     }
 
+    /**
+     * Отпускает flock на файле сессии PHP: долгий вызов opencode (до
+     * OC_TIMEOUT) иначе блокирует все параллельные запросы того же
+     * браузера — они ждут замок сессии (query, checkAuth, chat висят).
+     * После закрытия $_SESSION остаётся в памяти для чтения; записи после
+     * закрытия сохранены не будут — для обработчика команд это безопасно.
+     */
+    private function releaseSessionLock() {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+    }
+
     function processWithOpencode($message, $timeout = 0) {
         $this->getConfig();
+        $this->releaseSessionLock();
         $this->last_error = '';
         // Не установлен opencode — не шлём запрос и не пишем "server error".
         if (!$this->isOpencodeInstalled()) {
@@ -1875,11 +1889,8 @@ class opencode extends module {
         // игнорируется), а параметром system агента в конфиге. В v1 промпт идёт
         // вместе с каждым сообщением, поэтому блок агента туда не пишем.
         if ($this->isOpencodeV2()) {
-            $agent = !empty($this->config['OC_AGENT']) ? $this->config['OC_AGENT'] : 'build';
-            $system_prompt = $this->buildSystemPrompt();
-            if ($system_prompt !== '') {
-                $config['agents'][$agent] = array('system' => $system_prompt);
-            }
+            // Системный промпт не форсим в конфиг агента — держим поведение по умолчанию
+            // (быстрые ответы без навязанных шаблонов-приветствий)
         }
 
         if (empty($this->config['OC_FULL_ACCESS'])) {
@@ -2022,6 +2033,9 @@ class opencode extends module {
         $sub = $this->serviceSubcommand();
         $sudo = $this->isRoot() ? '' : 'sudo ';
 
+        $pure = !empty($this->config['OC_PURE_MODE']);
+        $extra_flags = $pure ? ' --no-plugins' : '';
+
         $service_file = '/etc/systemd/system/opencode-web.service';
         // Пишем основной юнит каждый раз, а не только при создании: подкоманда
         // сервиса меняется вместе с версией (v1 'web' -> v2 'serve'), и старый
@@ -2032,7 +2046,7 @@ class opencode extends module {
         $unit .= "After=network.target\n\n";
         $unit .= "[Service]\n";
         $unit .= "Type=simple\n";
-        $unit .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}\n";
+        $unit .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}{$extra_flags}\n";
         $unit .= "Restart=always\n";
         $unit .= "RestartSec=5\n\n";
         $unit .= "[Install]\n";
@@ -2059,7 +2073,9 @@ class opencode extends module {
             $content .= "Environment=OPENCODE_SERVER_USERNAME=" . $this->systemdEnvValue($login) . "\n";
             $content .= "Environment=OPENCODE_SERVER_PASSWORD=" . $this->systemdEnvValue($password) . "\n";
         }
-        $content .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}\n";
+        $pure = !empty($this->config['OC_PURE_MODE']);
+        $extra_flags = $pure ? ' --no-plugins' : '';
+        $content .= "ExecStart=" . $this->opencode_bin . " {$sub} --port {$port} --hostname {$hostname}{$extra_flags}\n";
         if (!empty($this->config['OC_MEMORY_LIMIT'])) {
             $mem_max = $this->sanitizeMemoryValue($this->config['OC_MEMORY_MAX'], '768M');
             $mem_high = $this->sanitizeMemoryValue($this->config['OC_MEMORY_HIGH'], '512M');
